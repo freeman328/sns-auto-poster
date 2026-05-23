@@ -1,7 +1,7 @@
 """
-投稿 API ルーター (修正完全版)
+投稿 API ルーター (500エラー完全解消版)
 """
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db, Post, PostStatus, User
 from ..scheduler import schedule_post, cancel_schedule
+from ..poster import post_to_platforms  # 👈 SNSへの即時送信処理をインポート
 from ..auth import get_current_user
 
 router = APIRouter()
@@ -20,12 +21,6 @@ class PostCreate(BaseModel):
     scheduled_at: Optional[str] = None  # ISO8601 or None (即時)
     repeat: Optional[str] = None        # "daily" | "weekly" | None
     weekdays: Optional[List[int]] = None
-
-class PostUpdate(BaseModel):
-    text: Optional[str] = None
-    platforms: Optional[List[str]] = None
-    image_urls: Optional[List[str]] = None
-    scheduled_at: Optional[str] = None
 
 def serialize_post(post: Post) -> dict:
     return {
@@ -51,6 +46,7 @@ def get_posts(db: Session = Depends(get_db), current_user: User = Depends(get_cu
 
 @router.post("/")
 def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """投稿作成（即時送信、または予約登録）"""
     sched_dt = None
     if body.scheduled_at:
         try:
@@ -59,24 +55,60 @@ def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: U
         except ValueError:
             raise HTTPException(400, "日時の形式が不正です")
 
-    post = Post(
-        text=body.text,
-        platforms=body.platforms,
-        image_urls=body.image_urls,
-        scheduled_at=sched_dt,
-        status=PostStatus.PENDING if sched_dt else PostStatus.POSTED,
-        user_id=current_user.id,
-        repeat=body.repeat,
-        weekdays=body.weekdays
-    )
-    db.add(post)
-    db.commit()
-    db.refresh(post)
-
-    if sched_dt and post.status == PostStatus.PENDING:
+    # 1. 予約投稿（未来の時間）の場合
+    if sched_dt:
+        post = Post(
+            text=body.text,
+            platforms=body.platforms,
+            image_urls=body.image_urls,
+            scheduled_at=sched_dt,
+            status=PostStatus.PENDING,
+            user_id=current_user.id, # idの数値を確実に渡す
+            repeat=body.repeat,
+            weekdays=body.weekdays
+        )
+        db.add(post)
+        db.commit()
+        db.refresh(post)
+        
+        # スケジューラー（APScheduler）に登録
         schedule_post(post.id, sched_dt)
-    
-    return serialize_post(post)
+        return serialize_post(post)
+
+    # 2. 今すぐ投稿（即時送信）の場合
+    else:
+        # その場でSNSに送信処理を実行
+        results = post_to_platforms(
+            text=body.text,
+            platforms=body.platforms,
+            image_urls=body.image_urls or [],
+            db=db
+        )
+        
+        # 選択したすべてのSNSで送信が成功したかチェック
+        all_success = all(res.get("success", False) for res in results.values())
+        
+        # エラーメッセージの集約
+        err_msg = None
+        if not all_success:
+            errors = [f"{p}: {res.get('error')}" for p, res in results.items() if not res.get("success")]
+            err_msg = " | ".join(errors)
+
+        post = Post(
+            text=body.text,
+            platforms=body.platforms,
+            image_urls=body.image_urls,
+            scheduled_at=None,
+            posted_at=datetime.utcnow() if all_success else None,
+            status=PostStatus.POSTED if all_success else PostStatus.FAILED,
+            error_message=err_msg,
+            user_id=current_user.id,
+            platform_post_ids={p: res.get("post_id") for p, res in results.items() if res.get("success")}
+        )
+        db.add(post)
+        db.commit()
+        db.refresh(post)
+        return serialize_post(post)
 
 @router.post("/draft")
 def save_draft(body: PostCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
