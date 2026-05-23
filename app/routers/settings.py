@@ -128,7 +128,7 @@ def test_connection(
                                params={"access_token_secret": config.get("access_token_secret")})
             success = resp.status_code == 200
             if not success: error = resp.text
-
+            
         elif platform == "threads":
             headers = {
                 "Authorization": f"Bearer {config.get('access_token_secret')}"

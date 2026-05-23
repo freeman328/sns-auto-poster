@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db, Post, PostStatus, User
 from ..scheduler import schedule_post, cancel_schedule
-from ..auth import get_current_user
+from .auth import get_current_user
+from ..poster import post_to_platforms
 
 router = APIRouter()
 
@@ -93,6 +94,13 @@ def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: U
 
     if sched_dt and post.status == PostStatus.PENDING:
         schedule_post(post.id, sched_dt)
+    else:
+        # 実際にSNSに投げるロジックを呼び出す
+        results = post_to_platforms(post.text, post.platforms, post.image_urls, db)
+        # 結果をDBに反映
+        post.status = PostStatus.POSTED
+        post.platform_post_ids = results # 投稿IDなどを保存
+        db.commit()
     
     return serialize_post(post)
 

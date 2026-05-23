@@ -124,8 +124,9 @@ def post_to_facebook(text: str, image_urls: List[str], config: dict) -> dict:
 def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
     """Threads API (Meta) で投稿"""
     try:
-        user_id = config["user_id"]
-        access_token = config["access_token"]
+        print(config["access_token_secret"])
+        user_id = config.get("user_id") or config.get("api_key")
+        access_token = config["access_token_secret"]
         base_url = "https://graph.threads.net/v1.0"
 
         # ── STEP1: コンテナ作成 ──
