@@ -145,18 +145,18 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
 
         if not image_urls:
             # テキストのみ
-            params["media_type"] = "TEXT"
+            payload["media_type"] = "TEXT"
             resp = requests.post(
                 f"{base_url}/{user_id}/threads",
-                params=params
+                params=payload
             )
         elif len(image_urls) == 1:
             # シングル画像（公開URLが必要）
-            params["media_type"] = "IMAGE"
-            params["image_url"] = image_urls[0] if image_urls[0].startswith("http") else BASE_URL + image_urls[0]
+            payload["media_type"] = "IMAGE"
+            payload["image_url"] = image_urls[0] if image_urls[0].startswith("http") else BASE_URL + image_urls[0]
             resp = requests.post(
                 f"{base_url}/{user_id}/threads",
-                params=params
+                params=payload
             )
         else:
             # カルーセル
