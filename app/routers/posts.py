@@ -60,11 +60,21 @@ def serialize_post(post: Post) -> dict:
 
 @router.get("/")
 def get_posts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """スケジュール中（待機中）の投稿一覧"""
+    # 1. ユーザーIDの確認
+    print(f"DEBUG: Current User ID is {current_user.id}")
+    
+    # 2. 全件取得してステータスを確認
+    all_user_posts = db.query(Post).filter(Post.user_id == current_user.id).all()
+    print(f"DEBUG: User has {len(all_user_posts)} posts in total.")
+    for p in all_user_posts:
+        print(f"DEBUG: Post ID {p.id}, Status: {p.status}, ScheduledAt: {p.scheduled_at}")
+        
+    # 3. 本来のフィルタリング
     posts = db.query(Post).filter(
         Post.status == PostStatus.PENDING,
         Post.user_id == current_user.id
     ).order_by(Post.scheduled_at.asc()).all()
+    
     return [serialize_post(p) for p in posts]
 
 @router.post("/")
