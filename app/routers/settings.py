@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 import requests
 import tweepy
 
@@ -57,6 +58,7 @@ def save_settings(body: PlatformConfig, db: Session = Depends(get_db)):
         if v and not v.endswith("****"):  # マスク値でなければ更新
             existing[k] = v
     setting.config = existing
+    flag_modified(setting, "config")
     db.commit()
     return {"message": f"{body.platform} の設定を保存しました"}
 

@@ -1,770 +1,1299 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SNS自動投稿ツール</title>
-<style>
-  :root {
-    --bg: #0f0f11;
-    --bg2: #18181c;
-    --bg3: #222228;
-    --border: rgba(255,255,255,0.08);
-    --border2: rgba(255,255,255,0.14);
-    --text: #f0f0f2;
-    --text2: #9898a8;
-    --text3: #5a5a6a;
-    --accent: #7c6dfa;
-    --accent2: #5b4ed4;
-    --success: #22c55e;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --x: #e7e9ea;
-    --fb: #1877F2;
-    --th: #101010;
-    --radius: 10px;
-    --radius-lg: 14px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; font-size: 14px; line-height: 1.6; }
-  
-  .layout { display: flex; min-height: 100vh; }
-  
-  /* Sidebar */
-  .sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
-  .logo { font-size: 15px; font-weight: 700; color: var(--text); padding: 8px 12px 20px; letter-spacing: -0.5px; }
-  .logo span { color: var(--accent); }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text2); font-size: 13px; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
-  .nav-item:hover { background: var(--bg3); color: var(--text); }
-  .nav-item.active { background: rgba(124,109,250,0.15); color: var(--accent); font-weight: 500; }
-  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
-  .nav-sep { height: 1px; background: var(--border); margin: 8px 0; }
-  .nav-label { font-size: 11px; color: var(--text3); padding: 4px 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-  
-  /* Main */
-  .main { flex: 1; overflow-y: auto; }
-  .page { display: none; padding: 28px 32px; max-width: 780px; }
-  .page.active { display: block; }
-  
-  .page-title { font-size: 20px; font-weight: 600; margin-bottom: 24px; color: var(--text); }
-  
-  /* Cards */
-  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
-  
-  /* Form elements */
-  .field { margin-bottom: 16px; }
-  .field-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; display: block; font-weight: 500; }
-  textarea, input[type="text"], input[type="date"], input[type="time"], input[type="password"], select {
-    width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius);
-    color: var(--text); font-size: 14px; padding: 10px 12px; font-family: inherit;
-    transition: border-color 0.15s; outline: none;
-  }
-  textarea:focus, input:focus, select:focus { border-color: var(--accent); }
-  textarea { min-height: 110px; resize: vertical; }
-  select option { background: var(--bg3); }
-  
-  /* Platform toggle */
-  .platform-row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .platform-btn { display: flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border2); background: transparent; cursor: pointer; font-size: 13px; color: var(--text2); font-family: inherit; transition: all 0.15s; }
-  .platform-btn:hover { border-color: var(--border2); background: var(--bg3); }
-  .platform-btn.active { border-color: var(--accent); background: rgba(124,109,250,0.1); color: var(--text); }
-  .p-dot { width: 8px; height: 8px; border-radius: 50%; }
-  .p-dot-x { background: var(--x); }
-  .p-dot-fb { background: var(--fb); }
-  .p-dot-th { background: #aaa; }
-  
-  /* Char counter */
-  .char-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
-  .char-count { font-size: 12px; color: var(--text3); }
-  .char-warn { color: var(--warning); }
-  .char-over { color: var(--danger); }
-  
-  /* Upload */
-  .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 18px; text-align: center; cursor: pointer; color: var(--text3); font-size: 13px; position: relative; transition: all 0.15s; }
-  .upload-zone:hover { border-color: var(--accent); color: var(--text2); background: rgba(124,109,250,0.04); }
-  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .preview-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-  .prev-img { position: relative; width: 72px; height: 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
-  .prev-img img { width: 100%; height: 100%; object-fit: cover; }
-  .prev-rm { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.7); border: none; cursor: pointer; color: var(--text); font-size: 11px; display: flex; align-items: center; justify-content: center; }
-  
-  /* Timing */
-  .timing-row { display: flex; gap: 16px; margin-bottom: 12px; }
-  .radio-opt { display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 13px; color: var(--text2); }
-  .radio-opt input { accent-color: var(--accent); }
-  .radio-opt.checked { color: var(--text); }
-  .datetime-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  
-  /* Buttons */
-  .btn { padding: 9px 20px; border-radius: var(--radius); font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 500; border: none; transition: all 0.15s; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: var(--accent2); }
-  .btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
-  .btn-ghost:hover { background: var(--bg3); color: var(--text); }
-  .btn-danger { background: transparent; border: 1px solid rgba(239,68,68,0.3); color: var(--danger); font-size: 12px; padding: 5px 12px; }
-  .btn-danger:hover { background: rgba(239,68,68,0.1); }
-  .btn-row { display: flex; gap: 8px; justify-content: flex-end; padding-top: 4px; }
-  
-  /* Post items */
-  .post-item { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 10px; }
-  .pi-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-  .pi-platforms { display: flex; gap: 5px; }
-  .pi-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 500; }
-  .pi-time { font-size: 12px; color: var(--text3); }
-  .pi-text { font-size: 13px; color: var(--text2); line-height: 1.5; margin-bottom: 8px; }
-  .pi-footer { display: flex; justify-content: space-between; align-items: center; }
-  .pi-actions { display: flex; gap: 6px; }
-  
-  /* Status badges */
-  .s-pending { background: rgba(245,158,11,0.15); color: var(--warning); }
-  .s-posted  { background: rgba(34,197,94,0.12); color: var(--success); }
-  .s-failed  { background: rgba(239,68,68,0.12); color: var(--danger); }
-  .s-draft   { background: rgba(255,255,255,0.06); color: var(--text3); }
-  
-  /* Platform badges */
-  .pb-x  { background: rgba(231,233,234,0.1); color: #e7e9ea; }
-  .pb-fb { background: rgba(24,119,242,0.15); color: #5ca0f7; }
-  .pb-th { background: rgba(255,255,255,0.07); color: #aaa; }
-  
-  /* Stats grid */
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
-  .stat-num { font-size: 28px; font-weight: 700; color: var(--text); }
-  .stat-label { font-size: 12px; color: var(--text3); margin-top: 2px; }
-  
-  /* Settings */
-  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .s-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
-  .s-card-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-  .s-dot { width: 8px; height: 8px; border-radius: 50%; }
-  .conn-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
-  .conn-yes { background: rgba(34,197,94,0.12); color: var(--success); }
-  .conn-no  { background: rgba(255,255,255,0.06); color: var(--text3); }
-  
-  /* Search */
-  .search-bar { position: relative; margin-bottom: 16px; }
-  .search-bar input { padding-left: 36px; }
-  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; }
-  
-  /* Toast */
-  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg3); border: 1px solid var(--border2); color: var(--text); padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9999; }
-  #toast.show { opacity: 1; }
-  
-  .empty { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
-  
-  @media (max-width: 700px) {
-    .sidebar { width: 60px; padding: 16px 8px; }
-    .logo, .nav-item span, .nav-label { display: none; }
-    .nav-item { justify-content: center; padding: 10px; }
-    .page { padding: 20px 16px; }
-    .settings-grid { grid-template-columns: 1fr; }
-  }
-  .wday-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border2); background: transparent; color: var(--text2); font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-  .wday-btn:hover { background: var(--bg3); color: var(--text); }
-  .wday-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNS自動投稿ツール</title>
+  <style>
+    :root {
+      --bg: #0f0f11;
+      --bg2: #18181c;
+      --bg3: #222228;
+      --border: rgba(255, 255, 255, 0.08);
+      --border2: rgba(255, 255, 255, 0.14);
+      --text: #f0f0f2;
+      --text2: #9898a8;
+      --text3: #5a5a6a;
+      --accent: #7c6dfa;
+      --accent2: #5b4ed4;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --x: #e7e9ea;
+      --fb: #1877F2;
+      --th: #101010;
+      --radius: 10px;
+      --radius-lg: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      padding: 8px 12px 20px;
+      letter-spacing: -0.5px;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      color: var(--text2);
+      font-size: 13px;
+      transition: all 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover {
+      background: var(--bg3);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: rgba(124, 109, 250, 0.15);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .nav-icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+    }
+
+    .nav-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 8px 0;
+    }
+
+    .nav-label {
+      font-size: 11px;
+      color: var(--text3);
+      padding: 4px 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Main */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .page {
+      display: none;
+      padding: 28px 32px;
+      max-width: 780px;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      color: var(--text);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    /* Form elements */
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 6px;
+      display: block;
+      font-weight: 500;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="date"],
+    input[type="time"],
+    input[type="password"],
+    select {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 14px;
+      padding: 10px 12px;
+      font-family: inherit;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    select option {
+      background: var(--bg3);
+    }
+
+    /* Platform toggle */
+    .platform-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .platform-btn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border2);
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text2);
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+
+    .platform-btn:hover {
+      border-color: var(--border2);
+      background: var(--bg3);
+    }
+
+    .platform-btn.active {
+      border-color: var(--accent);
+      background: rgba(124, 109, 250, 0.1);
+      color: var(--text);
+    }
+
+    .p-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .p-dot-x {
+      background: var(--x);
+    }
+
+    .p-dot-fb {
+      background: var(--fb);
+    }
+
+    .p-dot-th {
+      background: #aaa;
+    }
+
+    /* Char counter */
+    .char-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .char-count {
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    .char-warn {
+      color: var(--warning);
+    }
+
+    .char-over {
+      color: var(--danger);
+    }
+
+    /* Upload */
+    .upload-zone {
+      border: 1.5px dashed var(--border2);
+      border-radius: var(--radius);
+      padding: 18px;
+      text-align: center;
+      cursor: pointer;
+      color: var(--text3);
+      font-size: 13px;
+      position: relative;
+      transition: all 0.15s;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--accent);
+      color: var(--text2);
+      background: rgba(124, 109, 250, 0.04);
+    }
+
+    .upload-zone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .preview-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .prev-img {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .prev-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .prev-rm {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      border: none;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Timing */
+    .timing-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .radio-opt {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .radio-opt input {
+      accent-color: var(--accent);
+    }
+
+    .radio-opt.checked {
+      color: var(--text);
+    }
+
+    .datetime-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 9px 20px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent2);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--text2);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg3);
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--danger);
+      font-size: 12px;
+      padding: 5px 12px;
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding-top: 4px;
+    }
+
+    /* Post items */
+    .post-item {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+
+    .pi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .pi-platforms {
+      display: flex;
+      gap: 5px;
+    }
+
+    .pi-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    .pi-time {
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    .pi-text {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .pi-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .pi-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* Status badges */
+    .s-pending {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+    }
+
+    .s-posted {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--success);
+    }
+
+    .s-failed {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--danger);
+    }
+
+    .s-draft {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text3);
+    }
+
+    /* Platform badges */
+    .pb-x {
+      background: rgba(231, 233, 234, 0.1);
+      color: #e7e9ea;
+    }
+
+    .pb-fb {
+      background: rgba(24, 119, 242, 0.15);
+      color: #5ca0f7;
+    }
+
+    .pb-th {
+      background: rgba(255, 255, 255, 0.07);
+      color: #aaa;
+    }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+    }
+
+    .stat-num {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    /* Settings */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .s-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+    }
+
+    .s-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .s-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .conn-status {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .conn-yes {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--success);
+    }
+
+    .conn-no {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text3);
+    }
+
+    /* Search */
+    .search-bar {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .search-bar input {
+      padding-left: 36px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text3);
+      font-size: 14px;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      z-index: 9999;
+    }
+
+    #toast.show {
+      opacity: 1;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--text3);
+      font-size: 13px;
+    }
+
+    @media (max-width: 700px) {
+      .sidebar {
+        width: 60px;
+        padding: 16px 8px;
+      }
+
+      .logo,
+      .nav-item span,
+      .nav-label {
+        display: none;
+      }
+
+      .nav-item {
+        justify-content: center;
+        padding: 10px;
+      }
+
+      .page {
+        padding: 20px 16px;
+      }
+
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .wday-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border2);
+      background: transparent;
+      color: var(--text2);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+
+    .wday-btn:hover {
+      background: var(--bg3);
+      color: var(--text);
+    }
+
+    .wday-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="layout">
-  <!-- Sidebar -->
-  <nav class="sidebar">
-    <div class="logo">SNS<span>Post</span></div>
-    <button class="nav-item active" onclick="showPage('compose',this)">
-      <span class="nav-icon">✏️</span><span>投稿作成</span>
-    </button>
-    <button class="nav-item" onclick="showPage('schedule',this)">
-      <span class="nav-icon">🕐</span><span>スケジュール</span>
-    </button>
-    <button class="nav-item" onclick="showPage('history',this)">
-      <span class="nav-icon">📋</span><span>投稿履歴</span>
-    </button>
-    <button class="nav-item" onclick="showPage('stats',this)">
-      <span class="nav-icon">📊</span><span>統計</span>
-    </button>
-    <div class="nav-sep"></div>
-    <div class="nav-label">設定</div>
-    <button class="nav-item" onclick="showPage('settings',this)">
-      <span class="nav-icon">⚙️</span><span>APIキー</span>
-    </button>
-  </nav>
+  <div class="layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo">SNS<span>Post</span></div>
+      <button class="nav-item active" onclick="showPage('compose',this)">
+        <span class="nav-icon">✏️</span><span>投稿作成</span>
+      </button>
+      <button class="nav-item" onclick="showPage('schedule',this)">
+        <span class="nav-icon">🕐</span><span>スケジュール</span>
+      </button>
+      <button class="nav-item" onclick="showPage('history',this)">
+        <span class="nav-icon">📋</span><span>投稿履歴</span>
+      </button>
+      <button class="nav-item" onclick="showPage('stats',this)">
+        <span class="nav-icon">📊</span><span>統計</span>
+      </button>
+      <div class="nav-sep"></div>
+      <div class="nav-label">設定</div>
+      <button class="nav-item" onclick="showPage('settings',this)">
+        <span class="nav-icon">⚙️</span><span>APIキー</span>
+      </button>
+    </nav>
 
-  <div class="main">
+    <div class="main">
 
-    <!-- ▸ 投稿作成 -->
-    <div class="page active" id="page-compose">
-      <div class="page-title">投稿作成</div>
+      <!-- ▸ 投稿作成 -->
+      <div class="page active" id="page-compose">
+        <div class="page-title">投稿作成</div>
 
-      <div class="card">
-        <div class="field">
-          <span class="field-label">投稿先</span>
-          <div class="platform-row" id="platform-row">
-            <button class="platform-btn active" data-p="x" onclick="togglePlatform(this)">
-              <span class="p-dot p-dot-x"></span>X
-            </button>
-            <button class="platform-btn" data-p="facebook" onclick="togglePlatform(this)">
-              <span class="p-dot p-dot-fb"></span>Facebook
-            </button>
-            <button class="platform-btn" data-p="threads" onclick="togglePlatform(this)">
-              <span class="p-dot p-dot-th"></span>Threads
-            </button>
-          </div>
-        </div>
-
-        <div class="field">
-          <span class="field-label">テキスト</span>
-          <textarea id="post-text" placeholder="投稿内容を入力..." oninput="updateCounter()"></textarea>
-          <div class="char-row">
-            <span style="font-size:11px;color:var(--text3)" id="limit-info">X: 280字 / Threads: 500字</span>
-            <span class="char-count" id="char-count">0 / 280</span>
-          </div>
-        </div>
-
-        <div class="field">
-          <span class="field-label">画像（最大4枚）</span>
-          <div class="preview-row" id="preview-row"></div>
-          <div class="upload-zone" id="upload-zone">
-            <input type="file" accept="image/*" multiple onchange="handleImages(this)">
-            クリックまたはドラッグして画像を追加
-          </div>
-        </div>
-
-        <div class="field">
-          <span class="field-label">投稿タイミング</span>
-          <div class="timing-row">
-            <label class="radio-opt checked">
-              <input type="radio" name="timing" value="now" checked onchange="onTimingChange()"> 今すぐ投稿
-            </label>
-            <label class="radio-opt">
-              <input type="radio" name="timing" value="schedule" onchange="onTimingChange()"> 時刻指定
-            </label>
-            <label class="radio-opt">
-              <input type="radio" name="timing" value="daily" onchange="onTimingChange()"> 毎日
-            </label>
-            <label class="radio-opt">
-              <input type="radio" name="timing" value="weekly" onchange="onTimingChange()"> 毎週
-            </label>
+        <div class="card">
+          <div class="field">
+            <span class="field-label">投稿先</span>
+            <div class="platform-row" id="platform-row">
+              <button class="platform-btn active" data-p="x" onclick="togglePlatform(this)">
+                <span class="p-dot p-dot-x"></span>X
+              </button>
+              <button class="platform-btn" data-p="facebook" onclick="togglePlatform(this)">
+                <span class="p-dot p-dot-fb"></span>Facebook
+              </button>
+              <button class="platform-btn" data-p="threads" onclick="togglePlatform(this)">
+                <span class="p-dot p-dot-th"></span>Threads
+              </button>
+            </div>
           </div>
 
-          <!-- 時刻指定 -->
-          <div id="dt-fields" style="display:none" class="datetime-grid">
-            <div><span class="field-label">日付</span><input type="date" id="sched-date"></div>
-            <div><span class="field-label">時刻</span><input type="time" id="sched-time"></div>
+          <div class="field">
+            <span class="field-label">テキスト</span>
+            <textarea id="post-text" placeholder="投稿内容を入力..." oninput="updateCounter()"></textarea>
+            <div class="char-row">
+              <span style="font-size:11px;color:var(--text3)" id="limit-info">X: 280字 / Threads: 500字</span>
+              <span class="char-count" id="char-count">0 / 280</span>
+            </div>
           </div>
 
-          <!-- 毎日 -->
-          <div id="daily-fields" style="display:none;max-width:200px">
-            <span class="field-label">毎日の投稿時刻</span>
-            <input type="time" id="daily-time">
+          <div class="field">
+            <span class="field-label">画像（最大4枚）</span>
+            <div class="preview-row" id="preview-row"></div>
+            <div class="upload-zone" id="upload-zone">
+              <input type="file" accept="image/*" multiple onchange="handleImages(this)">
+              クリックまたはドラッグして画像を追加
+            </div>
           </div>
 
-          <!-- 毎週 -->
-          <div id="weekly-fields" style="display:none">
-            <div style="margin-bottom:10px">
-              <span class="field-label">曜日（複数選択可）</span>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px" id="weekday-row">
-                <button type="button" class="wday-btn" data-d="0">日</button>
-                <button type="button" class="wday-btn" data-d="1">月</button>
-                <button type="button" class="wday-btn" data-d="2">火</button>
-                <button type="button" class="wday-btn" data-d="3">水</button>
-                <button type="button" class="wday-btn" data-d="4">木</button>
-                <button type="button" class="wday-btn" data-d="5">金</button>
-                <button type="button" class="wday-btn" data-d="6">土</button>
+          <div class="field">
+            <span class="field-label">投稿タイミング</span>
+            <div class="timing-row">
+              <label class="radio-opt checked">
+                <input type="radio" name="timing" value="now" checked onchange="onTimingChange()"> 今すぐ投稿
+              </label>
+              <label class="radio-opt">
+                <input type="radio" name="timing" value="schedule" onchange="onTimingChange()"> 時刻指定
+              </label>
+              <label class="radio-opt">
+                <input type="radio" name="timing" value="daily" onchange="onTimingChange()"> 毎日
+              </label>
+              <label class="radio-opt">
+                <input type="radio" name="timing" value="weekly" onchange="onTimingChange()"> 毎週
+              </label>
+            </div>
+
+            <!-- 時刻指定 -->
+            <div id="dt-fields" style="display:none" class="datetime-grid">
+              <div><span class="field-label">日付</span><input type="date" id="sched-date"></div>
+              <div><span class="field-label">時刻</span><input type="time" id="sched-time"></div>
+            </div>
+
+            <!-- 毎日 -->
+            <div id="daily-fields" style="display:none;max-width:200px">
+              <span class="field-label">毎日の投稿時刻</span>
+              <input type="time" id="daily-time">
+            </div>
+
+            <!-- 毎週 -->
+            <div id="weekly-fields" style="display:none">
+              <div style="margin-bottom:10px">
+                <span class="field-label">曜日（複数選択可）</span>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px" id="weekday-row">
+                  <button type="button" class="wday-btn" data-d="0">日</button>
+                  <button type="button" class="wday-btn" data-d="1">月</button>
+                  <button type="button" class="wday-btn" data-d="2">火</button>
+                  <button type="button" class="wday-btn" data-d="3">水</button>
+                  <button type="button" class="wday-btn" data-d="4">木</button>
+                  <button type="button" class="wday-btn" data-d="5">金</button>
+                  <button type="button" class="wday-btn" data-d="6">土</button>
+                </div>
+              </div>
+              <div style="max-width:200px">
+                <span class="field-label">投稿時刻</span>
+                <input type="time" id="weekly-time">
               </div>
             </div>
-            <div style="max-width:200px">
-              <span class="field-label">投稿時刻</span>
-              <input type="time" id="weekly-time">
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-ghost" onclick="saveDraft()">下書き保存</button>
+            <button class="btn btn-primary" onclick="submitPost()">投稿する</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ▸ スケジュール -->
+      <div class="page" id="page-schedule">
+        <div class="page-title">スケジュール済み投稿</div>
+        <div id="schedule-list">
+          <div class="empty">スケジュール済み投稿はありません</div>
+        </div>
+      </div>
+
+      <!-- ▸ 投稿履歴 -->
+      <div class="page" id="page-history">
+        <div class="page-title">投稿履歴</div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <div class="search-bar" style="flex:1;min-width:200px">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="キーワード検索..." oninput="debounceSearch()">
+          </div>
+          <select id="hist-platform" onchange="loadHistory()" style="width:140px">
+            <option value="">すべてのSNS</option>
+            <option value="x">X</option>
+            <option value="facebook">Facebook</option>
+            <option value="threads">Threads</option>
+          </select>
+          <select id="hist-status" onchange="loadHistory()" style="width:130px">
+            <option value="">すべての状態</option>
+            <option value="posted">投稿済み</option>
+            <option value="failed">失敗</option>
+          </select>
+        </div>
+        <div id="history-list"></div>
+      </div>
+
+      <!-- ▸ 統計 -->
+      <div class="page" id="page-stats">
+        <div class="page-title">投稿統計</div>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="card">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px;font-weight:500">プラットフォーム別 投稿数</div>
+          <div id="platform-stats"></div>
+        </div>
+      </div>
+
+      <!-- ▸ 設定 -->
+      <div class="page" id="page-settings">
+        <div class="page-title">APIキー設定</div>
+        <div class="settings-grid">
+
+          <div class="s-card">
+            <div class="s-card-title">
+              <span class="s-dot" style="background:var(--x)"></span>X (Twitter)
+              <span class="conn-status conn-no" id="x-conn">未接続</span>
+            </div>
+            <div class="field"><span class="field-label">API Key</span><input type="password" id="x-api-key"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">API Secret</span><input type="password" id="x-api-secret"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">Access Token</span><input type="password" id="x-access-token"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">Access Token Secret</span><input type="password"
+                id="x-access-token-secret" placeholder="••••••••"></div>
+            <div class="btn-row">
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
+                onclick="testConn('x')">接続テスト</button>
+              <button class="btn btn-primary" style="font-size:12px;padding:7px 14px"
+                onclick="saveSettings('x')">保存</button>
             </div>
           </div>
-        </div>
 
-        <div class="btn-row">
-          <button class="btn btn-ghost" onclick="saveDraft()">下書き保存</button>
-          <button class="btn btn-primary" onclick="submitPost()">投稿する</button>
+          <div class="s-card">
+            <div class="s-card-title">
+              <span class="s-dot" style="background:var(--fb)"></span>Facebook
+              <span class="conn-status conn-no" id="fb-conn">未接続</span>
+            </div>
+            <div class="field"><span class="field-label">Page ID</span><input type="text" id="fb-page-id"
+                placeholder="123456789"></div>
+            <div class="field"><span class="field-label">App ID</span><input type="password" id="fb-app-id"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">App Secret</span><input type="password" id="fb-app-secret"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">Page Access Token</span><input type="password"
+                id="fb-page-access-token" placeholder="••••••••"></div>
+            <div class="btn-row">
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
+                onclick="testConn('facebook')">接続テスト</button>
+              <button class="btn btn-primary" style="font-size:12px;padding:7px 14px"
+                onclick="saveSettings('facebook')">保存</button>
+            </div>
+          </div>
+
+          <div class="s-card">
+            <div class="s-card-title">
+              <span class="s-dot" style="background:#aaa"></span>Threads
+              <span class="conn-status conn-no" id="th-conn">未接続</span>
+            </div>
+            <div class="field"><span class="field-label">User ID</span><input type="text" id="th-user-id"
+                placeholder="123456789"></div>
+            <div class="field"><span class="field-label">App ID</span><input type="password" id="th-app-id"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">App Secret</span><input type="password" id="th-app-secret"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">Access Token</span><input type="password" id="th-access-token"
+                placeholder="••••••••"></div>
+            <div class="btn-row">
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
+                onclick="testConn('threads')">接続テスト</button>
+              <button class="btn btn-primary" style="font-size:12px;padding:7px 14px"
+                onclick="saveSettings('threads')">保存</button>
+            </div>
+          </div>
+
+          <div class="s-card">
+            <div class="s-card-title" style="margin-bottom:16px">使い方</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8">
+              <div style="margin-bottom:8px"><strong style="color:var(--text)">X (Twitter)</strong><br>
+                developer.twitter.com でアプリ作成後、OAuth 1.0a の4つのキーを入力</div>
+              <div style="margin-bottom:8px"><strong style="color:var(--text)">Facebook</strong><br>
+                developers.facebook.com でアプリ作成、Graph API でページトークン取得</div>
+              <div><strong style="color:var(--text)">Threads</strong><br>
+                Meta Developer Portal で Threads API アクセスを有効化</div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
-
-    <!-- ▸ スケジュール -->
-    <div class="page" id="page-schedule">
-      <div class="page-title">スケジュール済み投稿</div>
-      <div id="schedule-list"><div class="empty">スケジュール済み投稿はありません</div></div>
-    </div>
-
-    <!-- ▸ 投稿履歴 -->
-    <div class="page" id="page-history">
-      <div class="page-title">投稿履歴</div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-        <div class="search-bar" style="flex:1;min-width:200px">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="search-input" placeholder="キーワード検索..." oninput="debounceSearch()">
-        </div>
-        <select id="hist-platform" onchange="loadHistory()" style="width:140px">
-          <option value="">すべてのSNS</option>
-          <option value="x">X</option>
-          <option value="facebook">Facebook</option>
-          <option value="threads">Threads</option>
-        </select>
-        <select id="hist-status" onchange="loadHistory()" style="width:130px">
-          <option value="">すべての状態</option>
-          <option value="posted">投稿済み</option>
-          <option value="failed">失敗</option>
-        </select>
-      </div>
-      <div id="history-list"></div>
-    </div>
-
-    <!-- ▸ 統計 -->
-    <div class="page" id="page-stats">
-      <div class="page-title">投稿統計</div>
-      <div class="stats-grid" id="stats-grid"></div>
-      <div class="card">
-        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;font-weight:500">プラットフォーム別 投稿数</div>
-        <div id="platform-stats"></div>
-      </div>
-    </div>
-
-    <!-- ▸ 設定 -->
-    <div class="page" id="page-settings">
-      <div class="page-title">APIキー設定</div>
-      <div class="settings-grid">
-
-        <div class="s-card">
-          <div class="s-card-title">
-            <span class="s-dot" style="background:var(--x)"></span>X (Twitter)
-            <span class="conn-status conn-no" id="x-conn">未接続</span>
-          </div>
-          <div class="field"><span class="field-label">API Key</span><input type="password" id="x-api-key" placeholder="••••••••"></div>
-          <div class="field"><span class="field-label">API Secret</span><input type="password" id="x-api-secret" placeholder="••••••••"></div>
-          <div class="field"><span class="field-label">Access Token</span><input type="password" id="x-access-token" placeholder="••••••••"></div>
-          <div class="field"><span class="field-label">Access Token Secret</span><input type="password" id="x-access-token-secret" placeholder="••••••••"></div>
-          <div class="btn-row">
-            <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px" onclick="testConn('x')">接続テスト</button>
-            <button class="btn btn-primary" style="font-size:12px;padding:7px 14px" onclick="saveSettings('x')">保存</button>
-          </div>
-        </div>
-
-        <div class="s-card">
-          <div class="s-card-title">
-            <span class="s-dot" style="background:var(--fb)"></span>Facebook
-            <span class="conn-status conn-no" id="fb-conn">未接続</span>
-          </div>
-          <div class="field"><span class="field-label">Page ID</span><input type="text" id="fb-page-id" placeholder="123456789"></div>
-          <div class="field"><span class="field-label">App ID</span><input type="password" id="fb-app-id" placeholder="••••••••"></div>
-          <div class="field"><span class="field-label">App Secret</span><input type="password" id="fb-app-secret" placeholder="••••••••"></div>
-          <div class="field"><span class="field-label">Page Access Token</span><input type="password" id="fb-page-access-token" placeholder="••••••••"></div>
-          <div class="btn-row">
-            <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px" onclick="testConn('facebook')">接続テスト</button>
-            <button class="btn btn-primary" style="font-size:12px;padding:7px 14px" onclick="saveSettings('facebook')">保存</button>
-          </div>
-        </div>
-
-        <div class="s-card">
-          <div class="s-card-title">
-            <span class="s-dot" style="background:#aaa"></span>Threads
-            <span class="conn-status conn-no" id="th-conn">未接続</span>
-          </div>
-          <div class="field"><span class="field-label">User ID</span><input type="text" id="th-user-id" placeholder="123456789"></div>
-          <div class="field"><span class="field-label">App ID</span><input type="password" id="th-app-id" placeholder="••••••••"></div>
-          <div class="field"><span class="field-label">App Secret</span><input type="password" id="th-app-secret" placeholder="••••••••"></div>
-          <div class="field"><span class="field-label">Access Token</span><input type="password" id="th-access-token" placeholder="••••••••"></div>
-          <div class="btn-row">
-            <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px" onclick="testConn('threads')">接続テスト</button>
-            <button class="btn btn-primary" style="font-size:12px;padding:7px 14px" onclick="saveSettings('threads')">保存</button>
-          </div>
-        </div>
-
-        <div class="s-card">
-          <div class="s-card-title" style="margin-bottom:16px">使い方</div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.8">
-            <div style="margin-bottom:8px"><strong style="color:var(--text)">X (Twitter)</strong><br>
-            developer.twitter.com でアプリ作成後、OAuth 1.0a の4つのキーを入力</div>
-            <div style="margin-bottom:8px"><strong style="color:var(--text)">Facebook</strong><br>
-            developers.facebook.com でアプリ作成、Graph API でページトークン取得</div>
-            <div><strong style="color:var(--text)">Threads</strong><br>
-            Meta Developer Portal で Threads API アクセスを有効化</div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
   </div>
-</div>
+  </div>
 
-<div id="toast"></div>
+  <div id="toast"></div>
 
-<script>
-const API = 'http://localhost:8000/api';
-const selectedPlatforms = new Set(['x']);
-const uploadedImages = [];
-let searchTimer = null;
+  <script>
+    const API = '/api';
+    const selectedPlatforms = new Set(['x']);
+    const uploadedImages = [];
+    let searchTimer = null;
 
-// ── ページ切り替え ──
-function showPage(name, btn) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  if (btn) btn.classList.add('active');
-  if (name === 'schedule') loadScheduled();
-  if (name === 'history') loadHistory();
-  if (name === 'stats') loadStats();
-  if (name === 'settings') loadSettings();
-}
-
-// ── プラットフォーム切り替え ──
-function togglePlatform(btn) {
-  const p = btn.dataset.p;
-  if (selectedPlatforms.has(p)) {
-    if (selectedPlatforms.size === 1) return;
-    selectedPlatforms.delete(p);
-    btn.classList.remove('active');
-  } else {
-    selectedPlatforms.add(p);
-    btn.classList.add('active');
-  }
-  updateCounter();
-  updateLimitInfo();
-}
-
-const LIMITS = { x: 280, facebook: 63206, threads: 500 };
-function getMinLimit() {
-  let m = Infinity;
-  selectedPlatforms.forEach(p => { if (LIMITS[p] < m) m = LIMITS[p]; });
-  return m;
-}
-function updateCounter() {
-  const len = document.getElementById('post-text').value.length;
-  const lim = getMinLimit();
-  const el = document.getElementById('char-count');
-  el.textContent = len + ' / ' + lim;
-  el.className = 'char-count' + (len > lim ? ' char-over' : len > lim * 0.9 ? ' char-warn' : '');
-}
-function updateLimitInfo() {
-  const parts = [];
-  selectedPlatforms.forEach(p => {
-    const label = p === 'x' ? 'X' : p === 'facebook' ? 'Facebook' : 'Threads';
-    parts.push(`${label}: ${LIMITS[p].toLocaleString()}字`);
-  });
-  document.getElementById('limit-info').textContent = parts.join(' / ');
-}
-
-// ── 画像アップロード ──
-async function handleImages(input) {
-  const files = Array.from(input.files).slice(0, 4 - uploadedImages.length);
-  for (const file of files) {
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const r = await fetch(`http://localhost:8000/api/upload`, { method: 'POST', body: form });
-      const data = await r.json();
-      uploadedImages.push(data.url);
-    } catch {
-      // オフライン時はローカルプレビューのみ
-      uploadedImages.push(URL.createObjectURL(file));
+    function showPage(name, btn) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('page-' + name).classList.add('active');
+      if (btn) btn.classList.add('active');
+      if (name === 'schedule') loadScheduled();
+      if (name === 'history') loadHistory();
+      if (name === 'stats') loadStats();
+      if (name === 'settings') loadSettings();
     }
-  }
-  renderPreviews();
-}
-function renderPreviews() {
-  document.getElementById('preview-row').innerHTML = uploadedImages.map((url, i) =>
-    `<div class="prev-img"><img src="${url}"><button class="prev-rm" onclick="removeImg(${i})">×</button></div>`
-  ).join('');
-  document.getElementById('upload-zone').style.display = uploadedImages.length >= 4 ? 'none' : '';
-}
-function removeImg(i) { uploadedImages.splice(i, 1); renderPreviews(); }
 
-// ── タイミング切り替え ──
-function onTimingChange() {
-  const v = document.querySelector('input[name="timing"]:checked').value;
-  document.getElementById('dt-fields').style.display = v === 'schedule' ? 'grid' : 'none';
-  document.getElementById('daily-fields').style.display = v === 'daily' ? 'block' : 'none';
-  document.getElementById('weekly-fields').style.display = v === 'weekly' ? 'block' : 'none';
-}
-
-const selectedWeekdays = new Set();
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.wday-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const d = btn.dataset.d;
-      if (selectedWeekdays.has(d)) { selectedWeekdays.delete(d); btn.classList.remove('active'); }
-      else { selectedWeekdays.add(d); btn.classList.add('active'); }
-    });
-  });
-});
-
-// ── 投稿 ──
-async function submitPost() {
-  const text = document.getElementById('post-text').value.trim();
-  if (!text) { toast('テキストを入力してください'); return; }
-  const timing = document.querySelector('input[name="timing"]:checked').value;
-
-  let scheduled_at = null;
-  let repeat = null;      // "daily" | "weekly"
-  let weekdays = null;    // [0,1,2...] 毎週の場合
-
-  if (timing === 'schedule') {
-    const d = document.getElementById('sched-date').value;
-    const t = document.getElementById('sched-time').value;
-    if (!d || !t) { toast('日付と時刻を指定してください'); return; }
-    scheduled_at = d + 'T' + t + ':00';
-
-  } else if (timing === 'daily') {
-    const t = document.getElementById('daily-time').value;
-    if (!t) { toast('投稿時刻を指定してください'); return; }
-    // 今日の指定時刻を初回実行日時にする
-    const today = new Date().toISOString().slice(0,10);
-    scheduled_at = today + 'T' + t + ':00';
-    repeat = 'daily';
-
-  } else if (timing === 'weekly') {
-    const t = document.getElementById('weekly-time').value;
-    if (!t) { toast('投稿時刻を指定してください'); return; }
-    if (selectedWeekdays.size === 0) { toast('曜日を選択してください'); return; }
-    weekdays = [...selectedWeekdays].map(Number).sort();
-    // 次の該当曜日を初回実行日時にする
-    const now = new Date();
-    let next = new Date();
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(now); d.setDate(now.getDate() + i);
-      if (weekdays.includes(d.getDay())) { next = d; break; }
+    function togglePlatform(btn) {
+      const p = btn.dataset.p;
+      if (selectedPlatforms.has(p)) {
+        if (selectedPlatforms.size === 1) return;
+        selectedPlatforms.delete(p);
+        btn.classList.remove('active');
+      } else {
+        selectedPlatforms.add(p);
+        btn.classList.add('active');
+      }
+      updateCounter();
+      updateLimitInfo();
     }
-    const dateStr = next.toISOString().slice(0,10);
-    scheduled_at = dateStr + 'T' + t + ':00';
-    repeat = 'weekly';
-  }
 
-  const labels = { now:'投稿しました', schedule:'スケジュール登録しました', daily:'毎日投稿を設定しました', weekly:'毎週投稿を設定しました' };
+    const LIMITS = { x: 280, facebook: 63206, threads: 500 };
+    function getMinLimit() {
+      let m = Infinity;
+      selectedPlatforms.forEach(p => { if (LIMITS[p] < m) m = LIMITS[p]; });
+      return m;
+    }
+    function updateCounter() {
+      const len = document.getElementById('post-text').value.length;
+      const lim = getMinLimit();
+      const el = document.getElementById('char-count');
+      el.textContent = len + ' / ' + lim;
+      el.className = 'char-count' + (len > lim ? ' char-over' : len > lim * 0.9 ? ' char-warn' : '');
+    }
+    function updateLimitInfo() {
+      const parts = [];
+      selectedPlatforms.forEach(p => {
+        const label = p === 'x' ? 'X' : p === 'facebook' ? 'Facebook' : 'Threads';
+        parts.push(`${label}: ${LIMITS[p].toLocaleString()}字`);
+      });
+      document.getElementById('limit-info').textContent = parts.join(' / ');
+    }
 
-  try {
-    const r = await fetch(`${API}/posts/`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        text,
-        platforms: [...selectedPlatforms],
-        image_urls: [...uploadedImages],
-        scheduled_at,
-        repeat,
-        weekdays
-      })
+    // ── 画像アップロード ──
+    async function handleImages(input) {
+      const files = Array.from(input.files).slice(0, 4 - uploadedImages.length);
+      for (const file of files) {
+        const form = new FormData();
+        form.append('file', file);
+        try {
+          const r = await fetch(`/api/upload`, { method: 'POST', body: form });
+          const data = await r.json();
+          uploadedImages.push(data.url);
+        } catch {
+          // オフライン時はローカルプレビューのみ
+          uploadedImages.push(URL.createObjectURL(file));
+        }
+      }
+      renderPreviews();
+    }
+    function renderPreviews() {
+      document.getElementById('preview-row').innerHTML = uploadedImages.map((url, i) =>
+        `<div class="prev-img"><img src="${url}"><button class="prev-rm" onclick="removeImg(${i})">×</button></div>`
+      ).join('');
+      document.getElementById('upload-zone').style.display = uploadedImages.length >= 4 ? 'none' : '';
+    }
+    function removeImg(i) { uploadedImages.splice(i, 1); renderPreviews(); }
+
+    // ── タイミング切り替え ──
+    function onTimingChange() {
+      const v = document.querySelector('input[name="timing"]:checked').value;
+      document.getElementById('dt-fields').style.display = v === 'schedule' ? 'grid' : 'none';
+      document.getElementById('daily-fields').style.display = v === 'daily' ? 'block' : 'none';
+      document.getElementById('weekly-fields').style.display = v === 'weekly' ? 'block' : 'none';
+    }
+
+    const selectedWeekdays = new Set();
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.wday-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const d = btn.dataset.d;
+          if (selectedWeekdays.has(d)) { selectedWeekdays.delete(d); btn.classList.remove('active'); }
+          else { selectedWeekdays.add(d); btn.classList.add('active'); }
+        });
+      });
     });
-    if (!r.ok) { const e = await r.json(); toast('エラー: ' + (e.detail || r.status)); return; }
-    toast(labels[timing] || '完了');
-    document.getElementById('post-text').value = '';
-    uploadedImages.length = 0;
-    renderPreviews();
-    updateCounter();
-  } catch {
-    toast('サーバーに接続できません（http://localhost:8000 を起動してください）');
-  }
-}
 
-async function saveDraft() {
-  const text = document.getElementById('post-text').value.trim();
-  if (!text) { toast('テキストを入力してください'); return; }
-  try {
-    await fetch(`${API}/posts/draft`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ text, platforms: [...selectedPlatforms], image_urls: [...uploadedImages] })
-    });
-    toast('下書き保存しました');
-  } catch { toast('サーバーに接続できません'); }
-}
+    // ── 投稿 ──
+    async function submitPost() {
+      const text = document.getElementById('post-text').value.trim();
+      if (!text) { toast('テキストを入力してください'); return; }
+      const timing = document.querySelector('input[name="timing"]:checked').value;
 
-// ── スケジュール一覧 ──
-async function loadScheduled() {
-  const el = document.getElementById('schedule-list');
-  try {
-    const r = await fetch(`${API}/posts/scheduled`);
-    const posts = await r.json();
-    if (!posts.length) { el.innerHTML = '<div class="empty">スケジュール済み投稿はありません</div>'; return; }
-    el.innerHTML = posts.map(p => postCard(p, true)).join('');
-  } catch { el.innerHTML = '<div class="empty">サーバーに接続できません</div>'; }
-}
+      let scheduled_at = null;
+      let repeat = null;      // "daily" | "weekly"
+      let weekdays = null;    // [0,1,2...] 毎週の場合
 
-async function deletePost(id) {
-  if (!confirm('削除しますか？')) return;
-  try {
-    await fetch(`${API}/posts/${id}`, { method: 'DELETE' });
-    toast('削除しました');
-    loadScheduled();
-  } catch { toast('削除失敗'); }
-}
+      if (timing === 'schedule') {
+        const d = document.getElementById('sched-date').value;
+        const t = document.getElementById('sched-time').value;
+        if (!d || !t) { toast('日付と時刻を指定してください'); return; }
+        scheduled_at = d + 'T' + t + ':00';
 
-function reusePost(text) {
-  document.getElementById('post-text').value = text;
-  updateCounter();
-  showPage('compose', document.querySelector('.nav-item'));
-  toast('テキストをコピーしました');
-}
+      } else if (timing === 'daily') {
+        const t = document.getElementById('daily-time').value;
+        if (!t) { toast('投稿時刻を指定してください'); return; }
+        // 今日の指定時刻を初回実行日時にする
+        const today = new Date().toISOString().slice(0, 10);
+        scheduled_at = today + 'T' + t + ':00';
+        repeat = 'daily';
 
-// ── 履歴 ──
-async function loadHistory() {
-  const el = document.getElementById('history-list');
-  const platform = document.getElementById('hist-platform').value;
-  const status = document.getElementById('hist-status').value;
-  const q = document.getElementById('search-input').value;
-  let url = `${API}/history/?`;
-  if (platform) url += `platform=${platform}&`;
-  if (status) url += `status=${status}&`;
-  try {
-    const r = await fetch(url);
-    const data = await r.json();
-    let posts = data.posts || [];
-    if (q) posts = posts.filter(p => p.text.includes(q));
-    el.innerHTML = posts.length ? posts.map(p => postCard(p, false)).join('') : '<div class="empty">履歴がありません</div>';
-  } catch { el.innerHTML = '<div class="empty">サーバーに接続できません</div>'; }
-}
+      } else if (timing === 'weekly') {
+        const t = document.getElementById('weekly-time').value;
+        if (!t) { toast('投稿時刻を指定してください'); return; }
+        if (selectedWeekdays.size === 0) { toast('曜日を選択してください'); return; }
+        weekdays = [...selectedWeekdays].map(Number).sort();
+        // 次の該当曜日を初回実行日時にする
+        const now = new Date();
+        let next = new Date();
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(now); d.setDate(now.getDate() + i);
+          if (weekdays.includes(d.getDay())) { next = d; break; }
+        }
+        const dateStr = next.toISOString().slice(0, 10);
+        scheduled_at = dateStr + 'T' + t + ':00';
+        repeat = 'weekly';
+      }
 
-function debounceSearch() {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(loadHistory, 400);
-}
+      const labels = { now: '投稿しました', schedule: 'スケジュール登録しました', daily: '毎日投稿を設定しました', weekly: '毎週投稿を設定しました' };
 
-// ── 統計 ──
-async function loadStats() {
-  try {
-    const r = await fetch(`${API}/history/stats`);
-    const s = await r.json();
-    document.getElementById('stats-grid').innerHTML = [
-      ['投稿済み', s.total_posted, 'var(--success)'],
-      ['失敗', s.total_failed, 'var(--danger)'],
-      ['スケジュール', s.scheduled, 'var(--warning)'],
-      ['下書き', s.drafts, 'var(--text3)'],
-      ['今週の投稿', s.weekly_posts, 'var(--accent)'],
-    ].map(([label, num, color]) =>
-      `<div class="stat-card"><div class="stat-num" style="color:${color}">${num}</div><div class="stat-label">${label}</div></div>`
-    ).join('');
+      try {
+        const r = await fetch(`${API}/posts/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            platforms: [...selectedPlatforms],
+            image_urls: [...uploadedImages],
+            scheduled_at,
+            repeat,
+            weekdays
+          })
+        });
+        if (!r.ok) { const e = await r.json(); toast('エラー: ' + (e.detail || r.status)); return; }
+        toast(labels[timing] || '完了');
+        document.getElementById('post-text').value = '';
+        uploadedImages.length = 0;
+        renderPreviews();
+        updateCounter();
+      } catch {
+        toast('サーバーに接続できません（http://localhost:8000 を起動してください）');
+      }
+    }
 
-    const bp = s.by_platform;
-    const total = Object.values(bp).reduce((a, b) => a + b, 0) || 1;
-    document.getElementById('platform-stats').innerHTML = [
-      ['X', bp.x, '#e7e9ea'],
-      ['Facebook', bp.facebook, 'var(--fb)'],
-      ['Threads', bp.threads, '#aaa'],
-    ].map(([name, count, color]) =>
-      `<div style="margin-bottom:12px">
+    async function saveDraft() {
+      const text = document.getElementById('post-text').value.trim();
+      if (!text) { toast('テキストを入力してください'); return; }
+      try {
+        await fetch(`${API}/posts/draft`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, platforms: [...selectedPlatforms], image_urls: [...uploadedImages] })
+        });
+        toast('下書き保存しました');
+      } catch { toast('サーバーに接続できません'); }
+    }
+
+    // ── スケジュール一覧 ──
+    async function loadScheduled() {
+      const el = document.getElementById('schedule-list');
+      try {
+        const r = await fetch(`${API}/posts/scheduled`);
+        const posts = await r.json();
+        if (!posts.length) { el.innerHTML = '<div class="empty">スケジュール済み投稿はありません</div>'; return; }
+        el.innerHTML = posts.map(p => postCard(p, true)).join('');
+      } catch { el.innerHTML = '<div class="empty">サーバーに接続できません</div>'; }
+    }
+
+    async function deletePost(id) {
+      if (!confirm('削除しますか？')) return;
+      try {
+        await fetch(`${API}/posts/${id}`, { method: 'DELETE' });
+        toast('削除しました');
+        loadScheduled();
+      } catch { toast('削除失敗'); }
+    }
+
+    function reusePost(text) {
+      document.getElementById('post-text').value = text;
+      updateCounter();
+      showPage('compose', document.querySelector('.nav-item'));
+      toast('テキストをコピーしました');
+    }
+
+    // ── 履歴 ──
+    async function loadHistory() {
+      const el = document.getElementById('history-list');
+      const platform = document.getElementById('hist-platform').value;
+      const status = document.getElementById('hist-status').value;
+      const q = document.getElementById('search-input').value;
+      let url = `${API}/history/?`;
+      if (platform) url += `platform=${platform}&`;
+      if (status) url += `status=${status}&`;
+      try {
+        const r = await fetch(url,);
+        const data = await r.json();
+        let posts = data.posts || [];
+        if (q) posts = posts.filter(p => p.text.includes(q));
+        el.innerHTML = posts.length ? posts.map(p => postCard(p, false)).join('') : '<div class="empty">履歴がありません</div>';
+      } catch { el.innerHTML = '<div class="empty">サーバーに接続できません</div>'; }
+    }
+
+    function debounceSearch() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadHistory, 400);
+    }
+
+    // ── 統計 ──
+    async function loadStats() {
+      try {
+        const r = await fetch(`${API}/history/stats`,);
+        const s = await r.json();
+        document.getElementById('stats-grid').innerHTML = [
+          ['投稿済み', s.total_posted, 'var(--success)'],
+          ['失敗', s.total_failed, 'var(--danger)'],
+          ['スケジュール', s.scheduled, 'var(--warning)'],
+          ['下書き', s.drafts, 'var(--text3)'],
+          ['今週の投稿', s.weekly_posts, 'var(--accent)'],
+        ].map(([label, num, color]) =>
+          `<div class="stat-card"><div class="stat-num" style="color:${color}">${num}</div><div class="stat-label">${label}</div></div>`
+        ).join('');
+
+        const bp = s.by_platform;
+        const total = Object.values(bp).reduce((a, b) => a + b, 0) || 1;
+        document.getElementById('platform-stats').innerHTML = [
+          ['X', bp.x, '#e7e9ea'],
+          ['Facebook', bp.facebook, 'var(--fb)'],
+          ['Threads', bp.threads, '#aaa'],
+        ].map(([name, count, color]) =>
+          `<div style="margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
           <span style="color:var(--text2)">${name}</span><span style="color:var(--text)">${count}件</span>
         </div>
         <div style="background:var(--bg3);border-radius:4px;height:6px">
-          <div style="background:${color};height:6px;border-radius:4px;width:${Math.round(count/total*100)}%"></div>
+          <div style="background:${color};height:6px;border-radius:4px;width:${Math.round(count / total * 100)}%"></div>
         </div>
       </div>`
-    ).join('');
-  } catch {
-    document.getElementById('stats-grid').innerHTML = '<div class="empty" style="grid-column:1/-1">サーバーに接続できません</div>';
-  }
-}
-
-// ── 設定 ──
-async function loadSettings() {
-  try {
-    const r = await fetch(`${API}/settings/`);
-    const data = await r.json();
-    for (const [p, s] of Object.entries(data)) {
-      const el = document.getElementById(p === 'x' ? 'x-conn' : p === 'facebook' ? 'fb-conn' : 'th-conn');
-      if (el) {
-        el.textContent = s.is_connected ? '接続済み' : '未接続';
-        el.className = 'conn-status ' + (s.is_connected ? 'conn-yes' : 'conn-no');
+        ).join('');
+      } catch {
+        document.getElementById('stats-grid').innerHTML = '<div class="empty" style="grid-column:1/-1">サーバーに接続できません</div>';
       }
     }
-  } catch {}
-}
 
-async function saveSettings(platform) {
-  let config = {};
-  if (platform === 'x') {
-    config = {
-      api_key: document.getElementById('x-api-key').value,
-      api_secret: document.getElementById('x-api-secret').value,
-      access_token: document.getElementById('x-access-token').value,
-      access_token_secret: document.getElementById('x-access-token-secret').value,
-    };
-  } else if (platform === 'facebook') {
-    config = {
-      page_id: document.getElementById('fb-page-id').value,
-      app_id: document.getElementById('fb-app-id').value,
-      app_secret: document.getElementById('fb-app-secret').value,
-      page_access_token: document.getElementById('fb-page-access-token').value,
-    };
-  } else if (platform === 'threads') {
-    config = {
-      user_id: document.getElementById('th-user-id').value,
-      app_id: document.getElementById('th-app-id').value,
-      app_secret: document.getElementById('th-app-secret').value,
-      access_token: document.getElementById('th-access-token').value,
-    };
-  }
-  try {
-    await fetch(`${API}/settings/`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ platform, config })
-    });
-    toast('保存しました');
-  } catch { toast('サーバーに接続できません'); }
-}
-
-async function testConn(platform) {
-  try {
-    const r = await fetch(`${API}/settings/test/${platform}`, { method: 'POST' });
-    const data = await r.json();
-    if (r.ok) {
-      toast('✅ 接続OK');
-      loadSettings();
-    } else {
-      toast('❌ ' + (data.detail || '接続失敗'));
+    // ── 設定 ──
+    async function loadSettings() {
+      try {
+        const r = await fetch(`${API}/settings/`,);
+        const data = await r.json();
+        for (const [p, s] of Object.entries(data)) {
+          const el = document.getElementById(p === 'x' ? 'x-conn' : p === 'facebook' ? 'fb-conn' : 'th-conn');
+          if (el) {
+            el.textContent = s.is_connected ? '接続済み' : '未接続';
+            el.className = 'conn-status ' + (s.is_connected ? 'conn-yes' : 'conn-no');
+          }
+        }
+      } catch { }
     }
-  } catch { toast('サーバーに接続できません'); }
-}
 
-// ── 共通カード ──
-function postCard(p, withDelete) {
-  const platforms = (p.platforms || []).map(pl =>
-    `<span class="pi-badge pb-${pl}">${pl === 'x' ? 'X' : pl === 'facebook' ? 'Facebook' : 'Threads'}</span>`
-  ).join('');
-  const time = p.scheduled_at
-    ? '📅 ' + new Date(p.scheduled_at).toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
-    : p.posted_at
-    ? '✅ ' + new Date(p.posted_at).toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
-    : '';
-  const statusLabel = { pending:'待機中', posted:'投稿済み', failed:'失敗', draft:'下書き' }[p.status] || p.status;
-  const actions = withDelete
-    ? `<button class="btn btn-danger" onclick="deletePost(${p.id})">削除</button>`
-    : `<button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick='reusePost(${JSON.stringify(p.text)})'>再利用</button>`;
-  return `
+    async function saveSettings(platform) {
+      let config = {};
+      if (platform === 'x') {
+        config = {
+          api_key: document.getElementById('x-api-key').value,
+          api_secret: document.getElementById('x-api-secret').value,
+          access_token: document.getElementById('x-access-token').value,
+          access_token_secret: document.getElementById('x-access-token-secret').value,
+        };
+      } else if (platform === 'facebook') {
+        config = {
+          page_id: document.getElementById('fb-page-id').value,
+          app_id: document.getElementById('fb-app-id').value,
+          app_secret: document.getElementById('fb-app-secret').value,
+          page_access_token: document.getElementById('fb-page-access-token').value,
+        };
+      } else if (platform === 'threads') {
+        config = {
+          user_id: document.getElementById('th-user-id').value,
+          app_id: document.getElementById('th-app-id').value,
+          app_secret: document.getElementById('th-app-secret').value,
+          access_token: document.getElementById('th-access-token').value,
+        };
+      }
+      try {
+        await fetch(`${API}/settings/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ platform, config })
+        });
+        toast('保存しました');
+      } catch { toast('サーバーに接続できません'); }
+    }
+
+    async function testConn(platform) {
+      try {
+        const r = await fetch(`${API}/settings/test/${platform}`, { method: 'POST' });
+        const data = await r.json();
+        if (r.ok) {
+          toast('✅ 接続OK');
+          loadSettings();
+        } else {
+          toast('❌ ' + (data.detail || '接続失敗'));
+        }
+      } catch { toast('サーバーに接続できません'); }
+    }
+
+    // ── 共通カード ──
+    function postCard(p, withDelete) {
+      const platforms = (p.platforms || []).map(pl =>
+        `<span class="pi-badge pb-${pl}">${pl === 'x' ? 'X' : pl === 'facebook' ? 'Facebook' : 'Threads'}</span>`
+      ).join('');
+      const time = p.scheduled_at
+        ? '📅 ' + new Date(p.scheduled_at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : p.posted_at
+          ? '✅ ' + new Date(p.posted_at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '';
+      const statusLabel = { pending: '待機中', posted: '投稿済み', failed: '失敗', draft: '下書き' }[p.status] || p.status;
+      const actions = withDelete
+        ? `<button class="btn btn-danger" onclick="deletePost(${p.id})">削除</button>`
+        : `<button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick='reusePost(${JSON.stringify(p.text)})'>再利用</button>`;
+      return `
     <div class="post-item">
       <div class="pi-header">
         <div class="pi-platforms">${platforms}</div>
         <span class="pi-time">${time}</span>
       </div>
-      <div class="pi-text">${p.text.length > 100 ? p.text.slice(0,100) + '…' : p.text}</div>
-      ${p.error_message ? `<div style="font-size:11px;color:var(--danger);margin-bottom:6px">⚠ ${p.error_message.slice(0,80)}</div>` : ''}
+      <div class="pi-text">${p.text.length > 100 ? p.text.slice(0, 100) + '…' : p.text}</div>
+      ${p.error_message ? `<div style="font-size:11px;color:var(--danger);margin-bottom:6px">⚠ ${p.error_message.slice(0, 80)}</div>` : ''}
       <div class="pi-footer">
         <span class="pi-badge s-${p.status}">${statusLabel}</span>
         <div class="pi-actions">${actions}</div>
       </div>
     </div>`;
-}
+    }
 
-// ── トースト ──
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2800);
-}
+    // ── トースト ──
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2800);
+    }
 
-// 初期化
-const today = new Date().toISOString().slice(0, 10);
-const nowTime = new Date().toTimeString().slice(0, 5);
-document.getElementById('sched-date').value = today;
-document.getElementById('sched-time').value = nowTime;
-updateCounter();
-</script>
+    // 初期化
+    const today = new Date().toISOString().slice(0, 10);
+    const nowTime = new Date().toTimeString().slice(0, 5);
+    document.getElementById('sched-date').value = today;
+    document.getElementById('sched-time').value = nowTime;
+    updateCounter();
+  </script>
 </body>
+
 </html>

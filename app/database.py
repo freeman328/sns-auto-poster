@@ -11,9 +11,23 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import enum
 
-DATABASE_URL = "sqlite:///./data/sns_poster.db"
+import os
+from dotenv import load_dotenv
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/sns_poster.db")
+
+# SupabaseはPostgreSQLなのでpsycopg2を使う
+# SQLAlchemy 1.4以降は postgresql:// を postgresql+psycopg2:// に変換が必要
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+# SQLiteの場合のみcheck_same_threadが必要
+if "sqlite" in DATABASE_URL:
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

@@ -71,7 +71,7 @@ def create_post(body: PostCreate, db: Session = Depends(get_db)):
         scheduled_at=scheduled_dt,
         status=PostStatus.PENDING if scheduled_dt else PostStatus.PENDING,
         repeat=body.repeat,
-        weekdays=body.weekdays,
+        weekdays=body.weekdays
     )
     db.add(post)
     db.commit()
@@ -167,7 +167,7 @@ def save_draft(body: PostCreate, db: Session = Depends(get_db)):
         text=body.text,
         platforms=body.platforms,
         image_urls=body.image_urls or [],
-        status=PostStatus.DRAFT,
+        status=PostStatus.DRAFT
     )
     db.add(post)
     db.commit()
