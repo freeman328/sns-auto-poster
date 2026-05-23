@@ -129,10 +129,19 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
         base_url = "https://graph.threads.net/v1.0"
 
         # ── STEP1: コンテナ作成 ──
-        params = {
+        payload = {
             "access_token": access_token,
+            "media_type": "TEXT",
             "text": text,
         }
+
+        resp = requests.post(
+            f"{base_url}/{user_id}/threads",
+            data=payload
+        )
+
+        print("THREADS RESPONSE:", resp.status_code, resp.text)
+        resp.raise_for_status()
 
         if not image_urls:
             # テキストのみ
