@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
+import tweepy
+import requests
 
 from ..database import get_db, Settings, User
 from ..auth import get_current_user
@@ -97,3 +99,46 @@ def update_setting(
         "is_connected": setting.is_connected,
         "config": setting.config
     }
+
+# settings.py に追加
+@router.post("/test/{platform}")
+def test_connection(
+    platform: str, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    """APIキーを使って接続テストを行う"""
+    setting = db.query(Settings).filter(
+        Settings.platform == platform.lower(),
+        Settings.user_id == current_user.id
+    ).first()
+
+    if not setting or not setting.config:
+        raise HTTPException(status_code=400, detail="設定が見つかりません")
+
+    # 実際のAPIテストロジック（既存のロジックを流用）
+    success = False
+    error = None
+    try:
+        config = setting.config
+        if platform == "x":
+            client = tweepy.Client(
+                consumer_key=config.get("api_key"),
+                consumer_secret=config.get("api_secret"),
+                access_token=config.get("access_token"),
+                access_token_secret=config.get("access_token_secret"),
+            )
+            success = client.get_me().data is not None
+        elif platform == "facebook":
+            resp = requests.get("https://graph.facebook.com/v18.0/me", params={"access_token": config.get("page_access_token")})
+            success = resp.status_code == 200
+        elif platform == "threads":
+            resp = requests.get("https://graph.threads.net/v1.0/me", params={"access_token": config.get("access_token")})
+            success = resp.status_code == 200
+        
+    except Exception as e:
+        error = str(e)
+
+    setting.is_connected = success
+    db.commit()
+    return {"success": success, "message": "接続テスト完了" if success else error}
