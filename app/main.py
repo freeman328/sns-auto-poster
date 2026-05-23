@@ -32,6 +32,10 @@ app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(history.router, prefix="/api/history", tags=["history"])
 
+# 必要なディレクトリを自動作成
+os.makedirs("uploads", exist_ok=True)
+os.makedirs("data", exist_ok=True)
+
 # 静的ファイル
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
