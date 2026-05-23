@@ -1,101 +1,131 @@
 """
-認証モジュール (JWT + bcrypt)
+認証 API ルーター
 """
 
-from datetime import datetime, timedelta
-from typing import Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status, APIRouter
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from fastapi import Form
-from app.database import get_db, User
+
+from ..database import get_db, User, Settings
+from ..auth import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter()
 
-# ── 設定 ──
-SECRET_KEY = "your-secret-key-change-this-in-production-please"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 24 * 7  # 7日間
 
-pwd_context = CryptContext(
-    schemes=["argon2"],
-    deprecated="auto"
-)
-bearer_scheme = HTTPBearer(auto_error=False)
+class RegisterBody(BaseModel):
+    username: str
+    email: str
+    password: str
 
 
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+class LoginBody(BaseModel):
+    username: str
+    password: str
 
-
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
-
-
-def create_access_token(user_id: int, username: str) -> str:
-    expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
-    payload = {"sub": str(user_id), "username": username, "exp": expire}
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
-
-def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
-    db: Session = Depends(get_db)
-) -> User:
-    exc = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="ログインが必要です",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    if not credentials:
-        raise exc
-    try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload.get("sub"))
-    except (JWTError, TypeError, ValueError):
-        raise exc
-
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
-    if not user:
-        raise exc
-    return user
-
-
-# ───────────────────────────────
-# ここからルーター
-# ───────────────────────────────
 
 @router.post("/register")
-def signup(
-    username: str = Form(...),
-    email: str = Form(...),
-    password: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    if db.query(User).filter(User.username == username).first():
-        raise HTTPException(400, "ユーザー名は既に存在します")
-    if db.query(User).filter(User.email == email).first():
-        raise HTTPException(400, "メールアドレスは既に登録されています")
+def register(body: RegisterBody, db: Session = Depends(get_db)):
+    """新規ユーザー登録（最初の1人は自動で管理者）"""
+    if db.query(User).filter(User.username == body.username).first():
+        raise HTTPException(400, "このユーザー名はすでに使われています")
+    if db.query(User).filter(User.email == body.email).first():
+        raise HTTPException(400, "このメールアドレスはすでに使われています")
+    if len(body.password) < 6:
+        raise HTTPException(400, "パスワードは6文字以上にしてください")
 
+    is_first = db.query(User).count() == 0  # 最初のユーザーは管理者
     user = User(
-        username=username,
-        email=email,
-        hashed_password=hash_password(password),
-        is_active=True
+        username=body.username,
+        email=body.email,
+        hashed_password=hash_password(body.password),
+        is_admin=is_first,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"message": "ユーザー登録完了", "user_id": user.id}
+
+    # ユーザー用のSNS設定を初期化
+    for platform in ["x", "facebook", "threads"]:
+        db.add(Settings(platform=platform, config={}, is_connected=False, user_id=user.id))
+    db.commit()
+
+    token = create_access_token(user.id, user.username)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {"id": user.id, "username": user.username, "is_admin": user.is_admin}
+    }
 
 
 @router.post("/login")
-def login(username: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == username).first()
-    if not user or not verify_password(password, user.hashed_password):
-        raise HTTPException(400, "ユーザー名またはパスワードが違います")
+def login(body: LoginBody, db: Session = Depends(get_db)):
+    """ログイン"""
+    user = db.query(User).filter(User.username == body.username).first()
+    if not user or not verify_password(body.password, user.hashed_password):
+        raise HTTPException(401, "ユーザー名またはパスワードが違います")
+    if not user.is_active:
+        raise HTTPException(403, "このアカウントは無効です")
 
     token = create_access_token(user.id, user.username)
-    return {"access_token": token, "token_type": "bearer"}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {"id": user.id, "username": user.username, "is_admin": user.is_admin}
+    }
+
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "is_admin": current_user.is_admin,
+    }
+
+
+@router.get("/users")
+def list_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.is_admin:
+        raise HTTPException(403, "管理者のみアクセスできます")
+    users = db.query(User).all()
+    return [{"id": u.id, "username": u.username, "email": u.email,
+             "is_admin": u.is_admin, "is_active": u.is_active} for u in users]
+
+
+@router.post("/users")
+def create_user(body: RegisterBody, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.is_admin:
+        raise HTTPException(403, "管理者のみアクセスできます")
+    if db.query(User).filter(User.username == body.username).first():
+        raise HTTPException(400, "このユーザー名はすでに使われています")
+
+    user = User(
+        username=body.username,
+        email=body.email,
+        hashed_password=hash_password(body.password),
+        is_admin=False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    for platform in ["x", "facebook", "threads"]:
+        db.add(Settings(platform=platform, config={}, is_connected=False, user_id=user.id))
+    db.commit()
+
+    return {"message": f"ユーザー {body.username} を作成しました", "id": user.id}
+
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.is_admin:
+        raise HTTPException(403, "管理者のみアクセスできます")
+    if user_id == current_user.id:
+        raise HTTPException(400, "自分自身は削除できません")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "ユーザーが見つかりません")
+    user.is_active = False
+    db.commit()
+    return {"message": "削除しました"}

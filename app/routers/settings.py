@@ -10,7 +10,8 @@ from sqlalchemy.orm.attributes import flag_modified
 import requests
 import tweepy
 
-from ..database import get_db, Settings
+from ..database import get_db, Settings, User
+from ..auth import get_current_user
 
 router = APIRouter()
 
@@ -28,9 +29,9 @@ def mask_secret(value: str) -> str:
 
 
 @router.get("/")
-def get_all_settings(db: Session = Depends(get_db)):
+def get_all_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """全プラットフォームの設定取得（マスク済み）"""
-    settings = db.query(Settings).all()
+    settings = db.query(Settings).filter(Settings.user_id == current_user.id).all()
     result = {}
     for s in settings:
         masked = {}
@@ -45,11 +46,11 @@ def get_all_settings(db: Session = Depends(get_db)):
 
 
 @router.post("/")
-def save_settings(body: PlatformConfig, db: Session = Depends(get_db)):
+def save_settings(body: PlatformConfig, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """APIキー設定を保存"""
-    setting = db.query(Settings).filter(Settings.platform == body.platform).first()
+    setting = db.query(Settings).filter(Settings.platform == body.platform, Settings.user_id == current_user.id).first()
     if not setting:
-        setting = Settings(platform=body.platform)
+        setting = Settings(platform=body.platform, user_id=current_user.id)
         db.add(setting)
 
     # 空文字はスキップ（既存値を保持）
@@ -64,9 +65,9 @@ def save_settings(body: PlatformConfig, db: Session = Depends(get_db)):
 
 
 @router.post("/test/{platform}")
-def test_connection(platform: str, db: Session = Depends(get_db)):
+def test_connection(platform: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """APIキーの接続テスト"""
-    setting = db.query(Settings).filter(Settings.platform == platform).first()
+    setting = db.query(Settings).filter(Settings.platform == platform, Settings.user_id == current_user.id).first()
     if not setting or not setting.config:
         raise HTTPException(400, "APIキーが設定されていません")
 
@@ -112,9 +113,9 @@ def test_connection(platform: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/{platform}")
-def delete_settings(platform: str, db: Session = Depends(get_db)):
+def delete_settings(platform: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """APIキー設定を削除"""
-    setting = db.query(Settings).filter(Settings.platform == platform).first()
+    setting = db.query(Settings).filter(Settings.platform == platform, Settings.user_id == current_user.id).first()
     if setting:
         setting.config = {}
         setting.is_connected = False

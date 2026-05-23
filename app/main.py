@@ -15,7 +15,7 @@ import uuid
 
 from .database import init_db, get_db
 from .scheduler import init_scheduler, shutdown_scheduler
-from .routers import posts, settings, history
+from .routers import posts, settings, history, auth
 
 app = FastAPI(title="SNS自動投稿ツール", version="1.0.0")
 
@@ -28,6 +28,7 @@ app.add_middleware(
 )
 
 # ルーター登録
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(history.router, prefix="/api/history", tags=["history"])

@@ -7,7 +7,8 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
-from ..database import get_db, Post, PostStatus
+from ..database import get_db, Post, PostStatus, User
+from ..auth import get_current_user
 
 router = APIRouter()
 
@@ -34,7 +35,8 @@ def get_history(
     days: int = Query(30, ge=1, le=365),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     投稿履歴取得
@@ -45,7 +47,8 @@ def get_history(
     since = datetime.utcnow() - timedelta(days=days)
     query = db.query(Post).filter(
         Post.status.in_([PostStatus.POSTED, PostStatus.FAILED]),
-        Post.created_at >= since
+        Post.created_at >= since,
+        Post.user_id == current_user.id
     )
 
     if status:
@@ -64,15 +67,16 @@ def get_history(
 
 
 @router.get("/stats")
-def get_stats(db: Session = Depends(get_db)):
+def get_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """投稿統計サマリー"""
-    total = db.query(Post).filter(Post.status == PostStatus.POSTED).count()
-    failed = db.query(Post).filter(Post.status == PostStatus.FAILED).count()
+    total = db.query(Post).filter(Post.status == PostStatus.POSTED, Post.user_id == current_user.id).count()
+    failed = db.query(Post).filter(Post.status == PostStatus.FAILED, Post.user_id == current_user.id).count()
     scheduled = db.query(Post).filter(
         Post.status == PostStatus.PENDING,
-        Post.scheduled_at.isnot(None)
+        Post.scheduled_at.isnot(None),
+        Post.user_id == current_user.id
     ).count()
-    drafts = db.query(Post).filter(Post.status == PostStatus.DRAFT).count()
+    drafts = db.query(Post).filter(Post.status == PostStatus.DRAFT, Post.user_id == current_user.id).count()
 
     # 直近7日の投稿数
     week_ago = datetime.utcnow() - timedelta(days=7)
@@ -82,7 +86,7 @@ def get_stats(db: Session = Depends(get_db)):
     ).count()
 
     # プラットフォーム別
-    all_posted = db.query(Post).filter(Post.status == PostStatus.POSTED).all()
+    all_posted = db.query(Post).filter(Post.status == PostStatus.POSTED, Post.user_id == current_user.id).all()
     platform_counts = {"x": 0, "facebook": 0, "threads": 0}
     for post in all_posted:
         for p in (post.platforms or []):
@@ -102,11 +106,13 @@ def get_stats(db: Session = Depends(get_db)):
 @router.get("/search")
 def search_history(
     q: str = Query(..., min_length=1),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """投稿テキスト検索"""
     posts = db.query(Post).filter(
         Post.text.contains(q),
-        Post.status.in_([PostStatus.POSTED, PostStatus.FAILED, PostStatus.DRAFT])
+        Post.status.in_([PostStatus.POSTED, PostStatus.FAILED, PostStatus.DRAFT]),
+        Post.user_id == current_user.id
     ).order_by(Post.created_at.desc()).limit(20).all()
     return [serialize_post(p) for p in posts]

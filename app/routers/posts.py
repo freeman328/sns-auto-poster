@@ -8,8 +8,9 @@ from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from ..database import get_db, Post, PostStatus
+from ..database import get_db, Post, PostStatus, User
 from ..scheduler import schedule_post, cancel_schedule, execute_post
+from ..auth import get_current_user
 
 router = APIRouter()
 
@@ -48,7 +49,7 @@ def serialize_post(post: Post) -> dict:
 
 
 @router.post("/")
-def create_post(body: PostCreate, db: Session = Depends(get_db)):
+def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """投稿作成（即時 or スケジュール）"""
     CHAR_LIMITS = {"x": 280, "facebook": 63206, "threads": 500}
     for platform in body.platforms:
@@ -71,7 +72,8 @@ def create_post(body: PostCreate, db: Session = Depends(get_db)):
         scheduled_at=scheduled_dt,
         status=PostStatus.PENDING if scheduled_dt else PostStatus.PENDING,
         repeat=body.repeat,
-        weekdays=body.weekdays
+        weekdays=body.weekdays,
+        user_id=current_user.id,
     )
     db.add(post)
     db.commit()
@@ -89,9 +91,9 @@ def create_post(body: PostCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/")
-def list_posts(status: Optional[str] = None, db: Session = Depends(get_db)):
+def list_posts(status: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """投稿一覧取得"""
-    query = db.query(Post)
+    query = db.query(Post).filter(Post.user_id == current_user.id)
     if status:
         query = query.filter(Post.status == status)
     posts = query.order_by(Post.created_at.desc()).all()
@@ -99,11 +101,12 @@ def list_posts(status: Optional[str] = None, db: Session = Depends(get_db)):
 
 
 @router.get("/scheduled")
-def list_scheduled(db: Session = Depends(get_db)):
+def list_scheduled(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """スケジュール済み投稿一覧"""
     posts = db.query(Post).filter(
         Post.status == PostStatus.PENDING,
-        Post.scheduled_at.isnot(None)
+        Post.scheduled_at.isnot(None),
+        Post.user_id == current_user.id
     ).order_by(Post.scheduled_at.asc()).all()
     return [serialize_post(p) for p in posts]
 
@@ -161,13 +164,14 @@ def delete_post(post_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/draft")
-def save_draft(body: PostCreate, db: Session = Depends(get_db)):
+def save_draft(body: PostCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """下書き保存"""
     post = Post(
         text=body.text,
         platforms=body.platforms,
         image_urls=body.image_urls or [],
-        status=PostStatus.DRAFT
+        status=PostStatus.DRAFT,
+        user_id=current_user.id,
     )
     db.add(post)
     db.commit()

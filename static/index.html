@@ -671,11 +671,184 @@
       color: #fff;
       font-weight: 600;
     }
+
+    /* ── ログイン画面 ── */
+    .login-wrap {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .login-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .login-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .login-subtitle {
+      font-size: 13px;
+      color: var(--text3);
+      margin-bottom: 24px;
+    }
+
+    .login-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .login-tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text2);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-family: inherit;
+    }
+
+    .login-tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+      font-weight: 500;
+    }
+
+    .login-error {
+      font-size: 12px;
+      color: var(--danger);
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: var(--radius);
+      display: none;
+    }
+
+    .login-error.show {
+      display: block;
+    }
+
+    /* ユーザーメニュー */
+    .user-menu {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      margin-top: auto;
+    }
+
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .user-name {
+      font-size: 12px;
+      color: var(--text2);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .logout-btn {
+      font-size: 11px;
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text3);
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .logout-btn:hover {
+      color: var(--text);
+      background: var(--bg3);
+    }
+
+    .admin-badge {
+      font-size: 10px;
+      background: rgba(124, 109, 250, 0.15);
+      color: var(--accent);
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+
+    /* ユーザー管理 */
+    .user-item {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
   </style>
 </head>
 
 <body>
 
+
+  <div class="login-wrap" id="login-wrap" style="display:none">
+    <div class="login-card">
+      <div class="login-title">SNS<span style="color:var(--accent)">Post</span></div>
+      <div class="login-subtitle">ログインして投稿を管理</div>
+      <div class="login-tabs">
+        <button class="login-tab active" onclick="switchLoginTab('login',this)">ログイン</button>
+        <button class="login-tab" onclick="switchLoginTab('register',this)">新規登録</button>
+      </div>
+      <div class="login-error" id="login-error"></div>
+      <div id="lf-login">
+        <div class="field"><span class="field-label">ユーザー名</span><input type="text" id="login-username"
+            placeholder="username"></div>
+        <div class="field"><span class="field-label">パスワード</span><input type="password" id="login-password"
+            placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doLogin()">ログイン</button>
+      </div>
+      <div id="lf-register" style="display:none">
+        <div class="field"><span class="field-label">ユーザー名</span><input type="text" id="reg-username"
+            placeholder="username"></div>
+        <div class="field"><span class="field-label">メールアドレス</span><input type="text" id="reg-email"
+            placeholder="email@example.com"></div>
+        <div class="field"><span class="field-label">パスワード（6文字以上）</span><input type="password" id="reg-password"
+            placeholder="••••••"></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doRegister()">登録</button>
+      </div>
+    </div>
+  </div>
   <div class="layout">
     <!-- Sidebar -->
     <nav class="sidebar">
@@ -697,6 +870,15 @@
       <button class="nav-item" onclick="showPage('settings',this)">
         <span class="nav-icon">⚙️</span><span>APIキー</span>
       </button>
+      <button class="nav-item" id="admin-nav" style="display:none" onclick="showPage('admin',this)">
+        <span class="nav-icon">👥</span><span>ユーザー管理</span>
+      </button>
+      <div style="flex:1"></div>
+      <div class="user-menu" id="user-menu" style="display:none">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <span class="user-name" id="user-name-disp">-</span>
+        <button class="logout-btn" onclick="doLogout()">ログアウト</button>
+      </div>
     </nav>
 
     <div class="main">
@@ -940,6 +1122,7 @@
       if (name === 'history') loadHistory();
       if (name === 'stats') loadStats();
       if (name === 'settings') loadSettings();
+      if (name === 'admin') loadAdminUsers();
     }
 
     function togglePlatform(btn) {
@@ -1106,7 +1289,7 @@
     async function loadScheduled() {
       const el = document.getElementById('schedule-list');
       try {
-        const r = await fetch(`${API}/posts/scheduled`);
+        const r = await fetch(`${API}/posts/scheduled`, { headers: authHeaders() });
         const posts = await r.json();
         if (!posts.length) { el.innerHTML = '<div class="empty">スケジュール済み投稿はありません</div>'; return; }
         el.innerHTML = posts.map(p => postCard(p, true)).join('');
@@ -1116,7 +1299,7 @@
     async function deletePost(id) {
       if (!confirm('削除しますか？')) return;
       try {
-        await fetch(`${API}/posts/${id}`, { method: 'DELETE' });
+        await fetch(`${API}/posts/${id}`, { method: 'DELETE', headers: authHeaders() });
         toast('削除しました');
         loadScheduled();
       } catch { toast('削除失敗'); }
@@ -1139,7 +1322,7 @@
       if (platform) url += `platform=${platform}&`;
       if (status) url += `status=${status}&`;
       try {
-        const r = await fetch(url,);
+        const r = await fetch(url, { headers: authHeaders() });
         const data = await r.json();
         let posts = data.posts || [];
         if (q) posts = posts.filter(p => p.text.includes(q));
@@ -1155,7 +1338,7 @@
     // ── 統計 ──
     async function loadStats() {
       try {
-        const r = await fetch(`${API}/history/stats`,);
+        const r = await fetch(`${API}/history/stats`, { headers: authHeaders() });
         const s = await r.json();
         document.getElementById('stats-grid').innerHTML = [
           ['投稿済み', s.total_posted, 'var(--success)'],
@@ -1191,7 +1374,7 @@
     // ── 設定 ──
     async function loadSettings() {
       try {
-        const r = await fetch(`${API}/settings/`,);
+        const r = await fetch(`${API}/settings/`, { headers: authHeaders() });
         const data = await r.json();
         for (const [p, s] of Object.entries(data)) {
           const el = document.getElementById(p === 'x' ? 'x-conn' : p === 'facebook' ? 'fb-conn' : 'th-conn');
@@ -1239,7 +1422,7 @@
 
     async function testConn(platform) {
       try {
-        const r = await fetch(`${API}/settings/test/${platform}`, { method: 'POST' });
+        const r = await fetch(`${API}/settings/test/${platform}`, { method: 'POST', headers: authHeaders() });
         const data = await r.json();
         if (r.ok) {
           toast('✅ 接続OK');
@@ -1293,6 +1476,7 @@
     document.getElementById('sched-date').value = today;
     document.getElementById('sched-time').value = nowTime;
     updateCounter();
+    checkAuth();
   </script>
 </body>
 

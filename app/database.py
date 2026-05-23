@@ -32,6 +32,19 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+class User(Base):
+    """ユーザーテーブル"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(200), unique=True, nullable=False)
+    hashed_password = Column(String(200), nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class PostStatus(str, enum.Enum):
     PENDING = "pending"
     POSTED = "posted"
@@ -52,6 +65,7 @@ class Post(Base):
     status = Column(String(20), default=PostStatus.PENDING)
     error_message = Column(Text, nullable=True)
     platform_post_ids = Column(JSON, default={})      # {"x": "tweet_id", ...}
+    user_id = Column(Integer, nullable=True)
     repeat = Column(String(10), nullable=True)       # None / "daily" / "weekly"
     weekdays = Column(JSON, nullable=True)             # [0,1,4] 毎週の場合
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -63,7 +77,8 @@ class Settings(Base):
     __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True)
-    platform = Column(String(50), unique=True, nullable=False)  # "x", "facebook", "threads"
+    platform = Column(String(50), nullable=False)
+    user_id = Column(Integer, nullable=True)  # "x", "facebook", "threads"
     config = Column(JSON, default={})   # 暗号化推奨: APIキーなど
     is_connected = Column(Boolean, default=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -71,16 +86,6 @@ class Settings(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
-    # デフォルト設定を挿入
-    db = SessionLocal()
-    try:
-        for platform in ["x", "facebook", "threads"]:
-            existing = db.query(Settings).filter(Settings.platform == platform).first()
-            if not existing:
-                db.add(Settings(platform=platform, config={}, is_connected=False))
-        db.commit()
-    finally:
-        db.close()
 
 
 def get_db():
