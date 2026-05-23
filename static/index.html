@@ -892,7 +892,7 @@
             <div class="field"><span class="field-label">Access Token</span><input type="password" id="x-access-token"
                 placeholder="••••••••"></div>
             <div class="field"><span class="field-label">Access Token Secret</span><input type="password"
-                id="x-access-token-secret" placeholder="••••••••"></div>
+                id="x_access_token_secret" placeholder="••••••••"></div>
             <div class="btn-row">
               <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
                 onclick="testConn('x')">接続テスト</button>
@@ -906,14 +906,14 @@
               <span class="s-dot" style="background:var(--fb)"></span>Facebook
               <span class="conn-status conn-no" id="fb-conn">未接続</span>
             </div>
-            <div class="field"><span class="field-label">Page ID</span><input type="text" id="fb-page-id"
+            <div class="field"><span class="field-label">Page ID</span><input type="text" id="fb_api_key"
                 placeholder="123456789"></div>
-            <div class="field"><span class="field-label">App ID</span><input type="password" id="fb-app-id"
+            <div class="field"><span class="field-label">App ID</span><input type="password" id="fb_api_secret"
                 placeholder="••••••••"></div>
-            <div class="field"><span class="field-label">App Secret</span><input type="password" id="fb-app-secret"
+            <div class="field"><span class="field-label">App Secret</span><input type="password" id="fb-access-token"
                 placeholder="••••••••"></div>
             <div class="field"><span class="field-label">Page Access Token</span><input type="password"
-                id="fb-page-access-token" placeholder="••••••••"></div>
+                id="fb_access_token_secret" placeholder="••••••••"></div>
             <div class="btn-row">
               <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
                 onclick="testConn('facebook')">接続テスト</button>
@@ -927,14 +927,14 @@
               <span class="s-dot" style="background:#aaa"></span>Threads
               <span class="conn-status conn-no" id="th-conn">未接続</span>
             </div>
-            <div class="field"><span class="field-label">User ID</span><input type="text" id="th-user-id"
+            <div class="field"><span class="field-label">User ID</span><input type="text" id="th_api_key"
                 placeholder="123456789"></div>
-            <div class="field"><span class="field-label">App ID</span><input type="password" id="th-app-id"
+            <div class="field"><span class="field-label">App ID</span><input type="password" id="th_api_secret"
                 placeholder="••••••••"></div>
-            <div class="field"><span class="field-label">App Secret</span><input type="password" id="th-app-secret"
+            <div class="field"><span class="field-label">App Secret</span><input type="password" id="th-access-token"
                 placeholder="••••••••"></div>
-            <div class="field"><span class="field-label">Access Token</span><input type="password" id="th-access-token"
-                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">Access Token</span><input type="password"
+                id="th_access_token_secret" placeholder="••••••••"></div>
             <div class="btn-row">
               <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
                 onclick="testConn('threads')">接続テスト</button>
@@ -1118,6 +1118,12 @@
 
       document.getElementById(`page-${pageId}`).classList.add('active');
       if (btn) btn.classList.add('active');
+      if (pageId === 'settings') {
+        console.log("APIキーページへ遷移: 読み込みを開始します");
+        loadSettings('x');
+        loadSettings('facebook');
+        loadSettings('threads');
+      }
     }
 
     // プラットフォーム選択の切り替え
@@ -1209,6 +1215,7 @@
       }
 
       try {
+        console.log("送るデータ:", JSON.stringify({ text, platforms: selectedPlatforms, scheduled_at }));
         const resp = await apiFetch('/api/posts/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1252,26 +1259,48 @@
       setTimeout(() => el.classList.remove('show'), 2500);
     }
 
-    // index.html 内の saveSettings 関数を以下に書き換えてください
     async function saveSettings(platform) {
       let config = {};
-      // ... (プラットフォームごとのconfig取得ロジックはそのまま) ...
+
+      // --- ここに各プラットフォームの値をフォームから取得する処理を追加 ---
+      if (platform === 'x') {
+        config = {
+          api_key: document.getElementById('x-api-key').value,
+          api_secret: document.getElementById('x-api-secret').value,
+          access_token: document.getElementById('x-access-token').value,
+          access_token_secret: document.getElementById('x_access_token_secret').value
+        };
+      } else if (platform === 'facebook') {
+        config = {
+          api_key: document.getElementById('fb_api_key').value,
+          api_secret: document.getElementById('fb_api_secret').value,
+          access_token: document.getElementById('fb-access-token').value,
+          access_token_secret: document.getElementById('fb_access_token_secret').value
+        };
+      } else if (platform === 'threads') {
+        config = {
+          api_key: document.getElementById('th_api_key').value,
+          api_secret: document.getElementById('th_api_secret').value,
+          access_token: document.getElementById('th-access-token').value,
+          access_token_secret: document.getElementById('th_access_token_secret').value
+        };
+      }
+      console.log("送信しようとしている値:", config);
 
       try {
-        // 【重要】サーバー側は @router.post("/{platform}") なので、URLに platform を含める必要があります
         const resp = await fetch(`/api/settings/${platform}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('token') // 認証が必要な場合
+            'Authorization': 'Bearer ' + localStorage.getItem('token')
           },
-          body: JSON.stringify({ config: config }) // body: { config: ... } の形にする
+          body: JSON.stringify({ config: config })
         });
 
         if (resp.ok) {
           const data = await resp.json();
           alert(data.message || '保存しました');
-          location.reload(); // 再読み込みして最新状態を表示
+          location.reload();
         } else {
           const error = await resp.json();
           alert('保存失敗: ' + (error.detail || '不明なエラー'));
@@ -1281,8 +1310,6 @@
       }
     }
 
-    // index.html の先頭付近で定義されているか確認
-    const API = '/api'; // もしくは空文字 ''
     async function testConn(platform) {
       try {
         // 相対パスで叩くのが最も確実です
@@ -1303,6 +1330,37 @@
       } catch (e) {
         console.error(e);
         toast('サーバーに接続できません');
+      }
+    }
+
+    async function loadSettings(platform) {
+      try {
+        const resp = await fetch(`/api/settings/${platform}`, {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.config) return;
+
+        const cfg = data.config;
+
+        if (platform === 'x') {
+          document.getElementById('x-api-key').value = cfg.api_key || '';
+          document.getElementById('x-api-secret').value = cfg.api_secret || '';
+          document.getElementById('x-access-token').value = cfg.access_token || '';
+          document.getElementById('x_access_token_secret').value = cfg.access_token_secret || '';
+        } else if (platform === 'facebook') {
+          document.getElementById('fb_api_key').value = cfg.api_key || ''; // HTMLのidに合わせています
+          document.getElementById('fb_api_secret').value = cfg.api_secret || '';
+          document.getElementById('fb-access-token').value = cfg.access_token || '';
+          document.getElementById('fb_access_token_secret').value = cfg.access_token_secret || '';
+        } else if (platform === 'threads') {
+          document.getElementById('th_api_key').value = cfg.api_key || '';
+          document.getElementById('th_api_secret').value = cfg.api_secret || '';
+          document.getElementById('th-access-token').value = cfg.access_token || '';
+          document.getElementById('th_access_token_secret').value = cfg.access_token_secret || '';
+        }
+      } catch (e) {
+        console.error('読み込みエラー:', e);
       }
     }
   </script>

@@ -52,6 +52,7 @@ def check_pending_posts():
 
 
 def schedule_post(post_id: int, scheduled_at: datetime):
+    print(f"DEBUG: スケジューラが呼び出されました。Post ID: {post_id}, 予定時刻: {scheduled_at}")
     """特定日時に投稿をスケジュール"""
     scheduler.add_job(
         execute_post,
