@@ -1,58 +1,71 @@
 """
-認証モジュール (JWT + bcrypt)
+認証・トークンユーティリティ (bcrypt直接駆動版)
 """
-
-from datetime import datetime, timedelta
+import os
+import bcrypt
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from dotenv import load_dotenv
 
 from .database import get_db, User
 
-# ── 設定 ──
-SECRET_KEY = "sns-poster-secret-key-change-in-production"
+load_dotenv()
+
+SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-key-change-this-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 24 * 7  # 7日間
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1日間有効
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-bearer_scheme = HTTPBearer(auto_error=False)
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """パスワードを安全にハッシュ化する (passlib依存を排除)"""
+    # bcryptはbytes型を要求するため相互変換を行う
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(pwd_bytes, salt)
+    return hashed.decode('utf-8')
 
-
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
-
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """入力されたパスワードとハッシュを検証する"""
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode('utf-8'),
+            hashed_password.encode('utf-8')
+        )
+    except Exception:
+        return False
 
 def create_access_token(user_id: int, username: str) -> str:
-    expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
-    payload = {"sub": str(user_id), "username": username, "exp": expire}
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    """JWTアクセストークンを作成"""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode = {
+        "sub": str(user_id),
+        "username": username,
+        "exp": expire
+    }
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
-
-def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
-    db: Session = Depends(get_db)
-) -> User:
-    exc = HTTPException(
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    """トークンから現在ログイン中のユーザーを取得する共通依存関係"""
+    credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="ログインが必要です",
+        detail="認証トークンが無効であるか期限が切れています",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    if not credentials:
-        raise exc
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload.get("sub"))
-    except (JWTError, TypeError, ValueError):
-        raise exc
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
-    if not user:
-        raise exc
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if user is None:
+        raise credentials_exception
     return user
