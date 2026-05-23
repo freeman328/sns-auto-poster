@@ -875,13 +875,86 @@
         <div class="stats-grid" id="stats-grid"></div>
       </div>
 
+      <!-- ▸ 設定 -->
       <div class="page" id="page-settings">
         <div class="page-title">APIキー設定</div>
         <div class="settings-grid">
+
           <div class="s-card">
-            <div class="s-card-title"><span class="p-dot p-dot-x"></span>X 設定</div>
-            <button class="btn btn-primary" onclick="toast('設定保存機能')">保存</button>
+            <div class="s-card-title">
+              <span class="s-dot" style="background:var(--x)"></span>X (Twitter)
+              <span class="conn-status conn-no" id="x-conn">未接続</span>
+            </div>
+            <div class="field"><span class="field-label">API Key</span><input type="password" id="x-api-key"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">API Secret</span><input type="password" id="x-api-secret"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">Access Token</span><input type="password" id="x-access-token"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">Access Token Secret</span><input type="password"
+                id="x-access-token-secret" placeholder="••••••••"></div>
+            <div class="btn-row">
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
+                onclick="testConn('x')">接続テスト</button>
+              <button class="btn btn-primary" style="font-size:12px;padding:7px 14px"
+                onclick="saveSettings('x')">保存</button>
+            </div>
           </div>
+
+          <div class="s-card">
+            <div class="s-card-title">
+              <span class="s-dot" style="background:var(--fb)"></span>Facebook
+              <span class="conn-status conn-no" id="fb-conn">未接続</span>
+            </div>
+            <div class="field"><span class="field-label">Page ID</span><input type="text" id="fb-page-id"
+                placeholder="123456789"></div>
+            <div class="field"><span class="field-label">App ID</span><input type="password" id="fb-app-id"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">App Secret</span><input type="password" id="fb-app-secret"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">Page Access Token</span><input type="password"
+                id="fb-page-access-token" placeholder="••••••••"></div>
+            <div class="btn-row">
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
+                onclick="testConn('facebook')">接続テスト</button>
+              <button class="btn btn-primary" style="font-size:12px;padding:7px 14px"
+                onclick="saveSettings('facebook')">保存</button>
+            </div>
+          </div>
+
+          <div class="s-card">
+            <div class="s-card-title">
+              <span class="s-dot" style="background:#aaa"></span>Threads
+              <span class="conn-status conn-no" id="th-conn">未接続</span>
+            </div>
+            <div class="field"><span class="field-label">User ID</span><input type="text" id="th-user-id"
+                placeholder="123456789"></div>
+            <div class="field"><span class="field-label">App ID</span><input type="password" id="th-app-id"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">App Secret</span><input type="password" id="th-app-secret"
+                placeholder="••••••••"></div>
+            <div class="field"><span class="field-label">Access Token</span><input type="password" id="th-access-token"
+                placeholder="••••••••"></div>
+            <div class="btn-row">
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
+                onclick="testConn('threads')">接続テスト</button>
+              <button class="btn btn-primary" style="font-size:12px;padding:7px 14px"
+                onclick="saveSettings('threads')">保存</button>
+            </div>
+          </div>
+
+          <div class="s-card">
+            <div class="s-card-title" style="margin-bottom:16px">使い方</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8">
+              <div style="margin-bottom:8px"><strong style="color:var(--text)">X (Twitter)</strong><br>
+                developer.twitter.com でアプリ作成後、OAuth 1.0a の4つのキーを入力</div>
+              <div style="margin-bottom:8px"><strong style="color:var(--text)">Facebook</strong><br>
+                developers.facebook.com でアプリ作成、Graph API でページトークン取得</div>
+              <div><strong style="color:var(--text)">Threads</strong><br>
+                Meta Developer Portal で Threads API アクセスを有効化</div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1177,6 +1250,53 @@
       el.textContent = msg;
       el.classList.add('show');
       setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    async function saveSettings(platform) {
+      let config = {};
+      if (platform === 'x') {
+        config = {
+          api_key: document.getElementById('x-api-key').value,
+          api_secret: document.getElementById('x-api-secret').value,
+          access_token: document.getElementById('x-access-token').value,
+          access_token_secret: document.getElementById('x-access-token-secret').value,
+        };
+      } else if (platform === 'facebook') {
+        config = {
+          page_id: document.getElementById('fb-page-id').value,
+          app_id: document.getElementById('fb-app-id').value,
+          app_secret: document.getElementById('fb-app-secret').value,
+          page_access_token: document.getElementById('fb-page-access-token').value,
+        };
+      } else if (platform === 'threads') {
+        config = {
+          user_id: document.getElementById('th-user-id').value,
+          app_id: document.getElementById('th-app-id').value,
+          app_secret: document.getElementById('th-app-secret').value,
+          access_token: document.getElementById('th-access-token').value,
+        };
+      }
+      try {
+        await fetch(`${API}/settings/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ platform, config })
+        });
+        toast('保存しました');
+      } catch { toast('サーバーに接続できません'); }
+    }
+
+    async function testConn(platform) {
+      try {
+        const r = await fetch(`${API}/settings/test/${platform}`, { method: 'POST' });
+        const data = await r.json();
+        if (r.ok) {
+          toast('✅ 接続OK');
+          loadSettings();
+        } else {
+          toast('❌ ' + (data.detail || '接続失敗'));
+        }
+      } catch { toast('サーバーに接続できません'); }
     }
   </script>
 </body>

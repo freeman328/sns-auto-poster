@@ -6,8 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from fastapi import APIRouter, Depends, HTTPException, status, Form  # 👈 Form を追加
+from fastapi.security import OAuth2PasswordRequestForm
 from ..database import get_db, User, Settings
+from typing import Optional
 from ..auth import hash_password, verify_password, create_access_token, get_current_user
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 
 router = APIRouter()
 
@@ -58,19 +62,42 @@ def register(body: RegisterBody, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(body: LoginBody, db: Session = Depends(get_db)):
-    """ログイン"""
-    user = db.query(User).filter(User.username == body.username).first()
-    if not user or not verify_password(body.password, user.hashed_password):
-        raise HTTPException(401, "ユーザー名またはパスワードが違います")
+def login(
+    username: str = Form(...),  # 👈 フロントから届くフォームデータの username を直接受け取る
+    password: str = Form(...),  # 👈 フロントから届くフォームデータの password を直接受け取る
+    db: Session = Depends(get_db)
+):
+    """ログイン（フロントのフォーム送信データ形式に100%完全特化）"""
+    
+    # 1. ユーザー名、またはメールアドレスとしてデータベースから検索
+    user = db.query(User).filter(
+        (User.username == username) | (User.email == username)
+    ).first()
+    
+    # 2. パスワード検証
+    if not user or not verify_password(password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="ユーザー名またはパスワードが違います"
+        )
+        
+    # 3. アカウント有効チェック
     if not user.is_active:
-        raise HTTPException(403, "このアカウントは無効です")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="このアカウントは無効です"
+        )
 
+    # 4. トークンを生成して返却
     token = create_access_token(user.id, user.username)
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": {"id": user.id, "username": user.username, "is_admin": user.is_admin}
+        "user": {
+            "id": user.id, 
+            "username": user.username, 
+            "is_admin": getattr(user, "is_admin", False)
+        }
     }
 
 
