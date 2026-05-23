@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # 画像を外部公開するためのベースURL
 # ngrok等で公開している場合はそのURLに変更してください
 # 例: BASE_URL = "https://xxxx.ngrok.io"
-BASE_URL = "http://localhost:8000"
+BASE_URL = "https://zi-dong-tou-gao-tsuruapuri.onrender.com"
 
 
 def get_platform_config(platform: str, db: Session) -> dict:
