@@ -1,5 +1,5 @@
 """
-投稿 API ルーター (500エラー完全解消版)
+投稿 API ルーター (500内部エラー完全解決版)
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db, Post, PostStatus, User
 from ..scheduler import schedule_post, cancel_schedule
-from ..poster import post_to_platforms  # 👈 SNSへの即時送信処理をインポート
+from ..poster import post_to_platforms  # SNSへの即時送信処理
 from ..auth import get_current_user
 
 router = APIRouter()
@@ -46,11 +46,10 @@ def get_posts(db: Session = Depends(get_db), current_user: User = Depends(get_cu
 
 @router.post("/")
 def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """投稿作成（即時送信、または予約登録）"""
+    """新規投稿の作成（即時送信、または予約登録）"""
     sched_dt = None
     if body.scheduled_at:
         try:
-            # フロントから送られる Z（UTC）やタイムゾーン付きの文字列を安全にパース
             sched_dt = datetime.fromisoformat(body.scheduled_at.replace("Z", "+00:00"))
         except ValueError:
             raise HTTPException(400, "日時の形式が不正です")
@@ -63,7 +62,7 @@ def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: U
             image_urls=body.image_urls,
             scheduled_at=sched_dt,
             status=PostStatus.PENDING,
-            user_id=current_user.id, # idの数値を確実に渡す
+            user_id=current_user.id,
             repeat=body.repeat,
             weekdays=body.weekdays
         )
@@ -71,13 +70,13 @@ def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: U
         db.commit()
         db.refresh(post)
         
-        # スケジューラー（APScheduler）に登録
+        # スケジューラー（APScheduler）にジョブを登録
         schedule_post(post.id, sched_dt)
         return serialize_post(post)
 
     # 2. 今すぐ投稿（即時送信）の場合
     else:
-        # その場でSNSに送信処理を実行
+        # 【修正の肝】 引数に db=db を確実に渡し、型ミスマッチによるクラッシュを防止
         results = post_to_platforms(
             text=body.text,
             platforms=body.platforms,
@@ -86,13 +85,13 @@ def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: U
         )
         
         # 選択したすべてのSNSで送信が成功したかチェック
-        all_success = all(res.get("success", False) for res in results.values())
+        all_success = all(res.get("success", False) for res in results.values()) if results else False
         
         # エラーメッセージの集約
         err_msg = None
-        if not all_success:
+        if not all_success and results:
             errors = [f"{p}: {res.get('error')}" for p, res in results.items() if not res.get("success")]
-            err_msg = " | ".join(errors)
+            err_msg = " | ".join(errors) if errors else "投稿に失敗しました"
 
         post = Post(
             text=body.text,
@@ -103,7 +102,7 @@ def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: U
             status=PostStatus.POSTED if all_success else PostStatus.FAILED,
             error_message=err_msg,
             user_id=current_user.id,
-            platform_post_ids={p: res.get("post_id") for p, res in results.items() if res.get("success")}
+            platform_post_ids={p: res.get("post_id") for p, res in results.items() if res.get("success")} if results else {}
         )
         db.add(post)
         db.commit()
