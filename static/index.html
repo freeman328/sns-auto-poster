@@ -992,6 +992,35 @@
     </div>
   </div>
 
+  <!-- 再投稿モーダル -->
+  <div id="repost-modal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+    <div
+      style="background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius-lg); padding:24px; width:min(440px, 90vw); display:flex; flex-direction:column; gap:16px;">
+      <div style="font-size:15px; font-weight:600; color:var(--text);">🔁 再投稿</div>
+      <div
+        style="font-size:12px; color:var(--text2); background:var(--bg3); border-radius:var(--radius); padding:10px 12px; max-height:80px; overflow-y:auto; line-height:1.6;"
+        id="repost-preview"></div>
+      <div>
+        <span class="field-label">投稿タイミング</span>
+        <div class="timing-row" style="margin-top:6px;">
+          <label class="radio-opt"><input type="radio" name="repost-timing" value="now" checked
+              onchange="onRepostTimingChange()"> 今すぐ</label>
+          <label class="radio-opt"><input type="radio" name="repost-timing" value="schedule"
+              onchange="onRepostTimingChange()"> 時刻指定</label>
+        </div>
+        <div id="repost-dt-fields" style="display:none; margin-top:10px;" class="datetime-grid">
+          <div><span class="field-label">日付</span><input type="date" id="repost-date"></div>
+          <div><span class="field-label">時刻</span><input type="time" id="repost-time"></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="closeRepostModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="confirmRepost()">投稿する</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast"></div>
 
   <script>
@@ -1213,13 +1242,26 @@
         list.innerHTML = data.length ? '' : '<div class="empty">投稿履歴はありません</div>';
 
         data.forEach(item => {
+          const platforms = (item.platforms || []).map(pl =>
+            `<span class="pi-badge pb-${pl}">${pl === 'x' ? 'X' : pl === 'facebook' ? 'Facebook' : 'Threads'}</span>`
+          ).join('');
+          const statusClass = item.status === 'posted' ? 's-posted' : item.status === 'failed' ? 's-failed' : 's-pending';
+          const statusLabel = item.status === 'posted' ? '投稿済み' : item.status === 'failed' ? '失敗' : item.status === 'draft' ? '下書き' : '待機中';
+          const time = item.posted_at || item.created_at
+            ? new Date(item.posted_at || item.created_at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : '';
           list.innerHTML += `
             <div class="post-item">
               <div class="pi-header">
-                <span class="pi-badge s-posted">${item.status}</span>
-                <span class="pi-time">${item.created_at || ''}</span>
+                <div class="pi-platforms">${platforms}</div>
+                <span class="pi-time">${time}</span>
               </div>
-              <div class="pi-text">${item.text}</div>
+              <div class="pi-text">${item.text.length > 120 ? item.text.slice(0, 120) + '…' : item.text}</div>
+              <div class="pi-footer" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span class="pi-badge ${statusClass}">${statusLabel}</span>
+                ${item.error_message ? `<span style="font-size:11px;color:var(--danger);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.error_message}">⚠️ ${item.error_message}</span>` : ''}
+                <button class="btn btn-ghost" style="margin-left:auto;font-size:12px;padding:5px 12px;" onclick="openRepostModal(${item.id}, \`${item.text.replace(/`/g, '\\`')}\`)">🔁 再投稿</button>
+              </div>
             </div>`;
         });
       } catch (e) { console.error(e); }
@@ -1476,6 +1518,62 @@
         }).join('');
       } catch (e) { el.innerHTML = '<div class="empty">サーバーに接続できません</div>'; console.error(e); }
     }
+    // ── 再投稿モーダル ──
+    let repostTargetId = null;
+
+    function openRepostModal(postId, text) {
+      repostTargetId = postId;
+      document.getElementById('repost-preview').textContent = text;
+      document.querySelector('input[name="repost-timing"][value="now"]').checked = true;
+      onRepostTimingChange();
+      const modal = document.getElementById('repost-modal');
+      modal.style.display = 'flex';
+    }
+
+    function closeRepostModal() {
+      document.getElementById('repost-modal').style.display = 'none';
+      repostTargetId = null;
+    }
+
+    function onRepostTimingChange() {
+      const isSchedule = document.querySelector('input[name="repost-timing"]:checked').value === 'schedule';
+      document.getElementById('repost-dt-fields').style.display = isSchedule ? 'grid' : 'none';
+    }
+
+    async function confirmRepost() {
+      if (!repostTargetId) return;
+      const timing = document.querySelector('input[name="repost-timing"]:checked').value;
+      let scheduled_at = null;
+
+      if (timing === 'schedule') {
+        const d = document.getElementById('repost-date').value;
+        const t = document.getElementById('repost-time').value;
+        if (!d || !t) { alert('日時を正確に指定してください'); return; }
+        scheduled_at = new Date(`${d}T${t}`).toISOString();
+      }
+
+      try {
+        const resp = await apiFetch(`/api/posts/${repostTargetId}/repost`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduled_at })
+        });
+        if (resp.ok) {
+          toast(scheduled_at ? '📅 再投稿を予約しました' : '✅ 再投稿しました');
+          closeRepostModal();
+          loadHistory();
+          loadStats();
+        } else {
+          const err = await resp.json();
+          alert('再投稿に失敗しました: ' + (err.detail || ''));
+        }
+      } catch (e) { alert(e); }
+    }
+
+    // モーダル外クリックで閉じる
+    document.getElementById('repost-modal').addEventListener('click', function (e) {
+      if (e.target === this) closeRepostModal();
+    });
   </script>
 </body>
 

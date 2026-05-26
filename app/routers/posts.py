@@ -151,3 +151,44 @@ def delete_post(post_id: int, db: Session = Depends(get_db), current_user: User 
     db.delete(post)
     db.commit()
     return {"message": "削除完了"}
+
+
+class RepostBody(BaseModel):
+    scheduled_at: Optional[str] = None  # None なら即時投稿
+
+
+@router.post("/{post_id}/repost")
+def repost(post_id: int, body: RepostBody, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """既存の投稿を再投稿（即時 or 予約）"""
+    original = db.query(Post).filter(Post.id == post_id, Post.user_id == current_user.id).first()
+    if not original:
+        raise HTTPException(404, "投稿が見つかりません")
+
+    sched_dt = None
+    if body.scheduled_at:
+        try:
+            sched_dt = datetime.fromisoformat(body.scheduled_at.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(400, "日時の形式が不正です")
+
+    new_post = Post(
+        text=original.text,
+        platforms=original.platforms,
+        image_urls=original.image_urls,
+        scheduled_at=sched_dt,
+        status=PostStatus.PENDING if sched_dt else PostStatus.POSTED,
+        user_id=current_user.id,
+    )
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+
+    if sched_dt:
+        schedule_post(new_post.id, sched_dt)
+    else:
+        results = post_to_platforms(new_post.text, new_post.platforms, new_post.image_urls, db)
+        new_post.status = PostStatus.POSTED
+        new_post.platform_post_ids = results
+        db.commit()
+
+    return serialize_post(new_post)
