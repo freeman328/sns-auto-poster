@@ -56,7 +56,19 @@ def serialize_post(post: Post) -> dict:
         "status": post.status,
         "error_message": post.error_message,
         "created_at": created_str,
+        "repeat": post.repeat,
+        "weekdays": post.weekdays,
     }
+
+@router.get("/scheduled")
+def get_scheduled(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """スケジュール済み投稿一覧（pending かつ scheduled_at あり）"""
+    posts = db.query(Post).filter(
+        Post.status == PostStatus.PENDING,
+        Post.scheduled_at.isnot(None),
+        Post.user_id == current_user.id
+    ).order_by(Post.scheduled_at.asc()).all()
+    return [serialize_post(p) for p in posts]
 
 @router.get("/")
 def get_posts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
