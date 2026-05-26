@@ -1014,6 +1014,33 @@
           <div><span class="field-label">時刻</span><input type="time" id="repost-time"></div>
         </div>
       </div>
+      <div id="repost-repeat-field" style="display:none;">
+        <span class="field-label">🔁 自動繰り返し</span>
+        <div class="timing-row" style="margin-top:6px;">
+          <label class="radio-opt"><input type="radio" name="repost-repeat" value="none" checked
+              onchange="onRepostRepeatChange()"> なし</label>
+          <label class="radio-opt"><input type="radio" name="repost-repeat" value="daily"
+              onchange="onRepostRepeatChange()"> 毎日</label>
+          <label class="radio-opt"><input type="radio" name="repost-repeat" value="weekly"
+              onchange="onRepostRepeatChange()"> 毎週</label>
+        </div>
+        <div id="repost-weekday-picker" style="display:none; margin-top:10px;">
+          <span class="field-label" style="margin-bottom:8px;display:block;">投稿する曜日</span>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="wday-btn" data-rday="0" onclick="toggleRepostWeekday(this)">月</button>
+            <button type="button" class="wday-btn" data-rday="1" onclick="toggleRepostWeekday(this)">火</button>
+            <button type="button" class="wday-btn" data-rday="2" onclick="toggleRepostWeekday(this)">水</button>
+            <button type="button" class="wday-btn" data-rday="3" onclick="toggleRepostWeekday(this)">木</button>
+            <button type="button" class="wday-btn" data-rday="4" onclick="toggleRepostWeekday(this)">金</button>
+            <button type="button" class="wday-btn" data-rday="5" onclick="toggleRepostWeekday(this)">土</button>
+            <button type="button" class="wday-btn" data-rday="6" onclick="toggleRepostWeekday(this)">日</button>
+          </div>
+        </div>
+        <div id="repost-repeat-note"
+          style="display:none; margin-top:8px; font-size:12px; color:var(--text3); background:rgba(124,109,250,0.08); border-radius:8px; padding:8px 12px; border:1px solid rgba(124,109,250,0.2);">
+          ⚠️ 指定した日時から繰り返します。次回以降は自動でスケジュールが作成されます。
+        </div>
+      </div>
       <div class="btn-row">
         <button class="btn btn-ghost" onclick="closeRepostModal()">キャンセル</button>
         <button class="btn btn-primary" onclick="confirmRepost()">投稿する</button>
@@ -1525,7 +1552,11 @@
       repostTargetId = postId;
       document.getElementById('repost-preview').textContent = text;
       document.querySelector('input[name="repost-timing"][value="now"]').checked = true;
+      document.querySelector('input[name="repost-repeat"][value="none"]').checked = true;
+      // 曜日ボタンをリセット
+      document.querySelectorAll('#repost-weekday-picker .wday-btn').forEach(b => b.classList.remove('active'));
       onRepostTimingChange();
+      onRepostRepeatChange();
       const modal = document.getElementById('repost-modal');
       modal.style.display = 'flex';
     }
@@ -1538,28 +1569,59 @@
     function onRepostTimingChange() {
       const isSchedule = document.querySelector('input[name="repost-timing"]:checked').value === 'schedule';
       document.getElementById('repost-dt-fields').style.display = isSchedule ? 'grid' : 'none';
+      document.getElementById('repost-repeat-field').style.display = isSchedule ? 'block' : 'none';
+      if (!isSchedule) {
+        document.querySelector('input[name="repost-repeat"][value="none"]').checked = true;
+        onRepostRepeatChange();
+      }
+    }
+
+    function onRepostRepeatChange() {
+      const repeat = document.querySelector('input[name="repost-repeat"]:checked').value;
+      document.getElementById('repost-weekday-picker').style.display = repeat === 'weekly' ? 'block' : 'none';
+      document.getElementById('repost-repeat-note').style.display = repeat !== 'none' ? 'block' : 'none';
+    }
+
+    function toggleRepostWeekday(btn) {
+      btn.classList.toggle('active');
     }
 
     async function confirmRepost() {
       if (!repostTargetId) return;
       const timing = document.querySelector('input[name="repost-timing"]:checked').value;
       let scheduled_at = null;
+      let repeat = null;
+      let weekdays = null;
 
       if (timing === 'schedule') {
         const d = document.getElementById('repost-date').value;
         const t = document.getElementById('repost-time').value;
         if (!d || !t) { alert('日時を正確に指定してください'); return; }
         scheduled_at = new Date(`${d}T${t}`).toISOString();
+
+        const repeatVal = document.querySelector('input[name="repost-repeat"]:checked').value;
+        if (repeatVal !== 'none') {
+          repeat = repeatVal;
+          if (repeatVal === 'weekly') {
+            weekdays = Array.from(document.querySelectorAll('#repost-weekday-picker .wday-btn.active'))
+              .map(btn => parseInt(btn.getAttribute('data-rday')));
+            if (weekdays.length === 0) {
+              alert('毎週繰り返しの場合は曜日を1つ以上選択してください');
+              return;
+            }
+          }
+        }
       }
 
       try {
         const resp = await apiFetch(`/api/posts/${repostTargetId}/repost`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scheduled_at })
+          body: JSON.stringify({ scheduled_at, repeat, weekdays })
         });
         if (resp.ok) {
-          toast(scheduled_at ? '📅 再投稿を予約しました' : '✅ 再投稿しました');
+          const repeatLabel = repeat === 'daily' ? '（毎日繰り返し）' : repeat === 'weekly' ? '（毎週繰り返し）' : '';
+          toast(scheduled_at ? `📅 再投稿を予約しました ${repeatLabel}` : '✅ 再投稿しました');
           closeRepostModal();
           loadHistory();
           loadStats();

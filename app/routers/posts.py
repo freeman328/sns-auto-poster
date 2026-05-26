@@ -154,12 +154,14 @@ def delete_post(post_id: int, db: Session = Depends(get_db), current_user: User 
 
 
 class RepostBody(BaseModel):
-    scheduled_at: Optional[str] = None  # None なら即時投稿
+    scheduled_at: Optional[str] = None
+    repeat: Optional[str] = None
+    weekdays: Optional[List[int]] = None
 
 
 @router.post("/{post_id}/repost")
 def repost(post_id: int, body: RepostBody, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """既存の投稿を再投稿（即時 or 予約）"""
+    """既存の投稿を再投稿（即時 or 予約、繰り返し対応）"""
     original = db.query(Post).filter(Post.id == post_id, Post.user_id == current_user.id).first()
     if not original:
         raise HTTPException(404, "投稿が見つかりません")
@@ -178,6 +180,8 @@ def repost(post_id: int, body: RepostBody, db: Session = Depends(get_db), curren
         scheduled_at=sched_dt,
         status=PostStatus.PENDING if sched_dt else PostStatus.POSTED,
         user_id=current_user.id,
+        repeat=body.repeat,
+        weekdays=body.weekdays,
     )
     db.add(new_post)
     db.commit()
