@@ -495,6 +495,13 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 16px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .s-card.connected {
+      border-color: rgba(34, 197, 94, 0.5);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.15), 0 4px 16px rgba(34, 197, 94, 0.08);
+      background: linear-gradient(135deg, var(--bg2) 0%, rgba(34, 197, 94, 0.04) 100%);
     }
 
     .s-card-title {
@@ -508,18 +515,68 @@
 
     .conn-status {
       font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 10px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
     }
 
     .conn-yes {
-      background: rgba(34, 197, 94, 0.12);
-      color: var(--success);
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .conn-yes::before {
+      content: '●';
+      font-size: 7px;
+      animation: pulse-dot 2s infinite;
     }
 
     .conn-no {
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text3);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .conn-no::before {
+      content: '○';
+      font-size: 8px;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
+
+    .s-card.connected .s-card-header-icon {
+      filter: drop-shadow(0 0 6px currentColor);
+    }
+
+    .connected-banner {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin-bottom: 10px;
+    }
+
+    .s-card.connected .connected-banner {
+      display: flex;
     }
 
     /* Search */
@@ -911,11 +968,12 @@
         <div class="page-title">APIキー設定</div>
         <div class="settings-grid">
 
-          <div class="s-card">
+          <div class="s-card" id="card-x">
             <div class="s-card-title">
               <span class="s-dot" style="background:var(--x)"></span>X (Twitter)
               <span class="conn-status conn-no" id="x-conn">未接続</span>
             </div>
+            <div class="connected-banner">✓ APIキーが設定済みで接続されています</div>
             <div class="field"><span class="field-label">API Key</span><input type="password" id="x-api-key"
                 placeholder="••••••••"></div>
             <div class="field"><span class="field-label">API Secret</span><input type="password" id="x-api-secret"
@@ -932,11 +990,12 @@
             </div>
           </div>
 
-          <div class="s-card">
+          <div class="s-card" id="card-facebook">
             <div class="s-card-title">
               <span class="s-dot" style="background:var(--fb)"></span>Facebook
               <span class="conn-status conn-no" id="fb-conn">未接続</span>
             </div>
+            <div class="connected-banner">✓ APIキーが設定済みで接続されています</div>
             <div class="field"><span class="field-label">Page ID</span><input type="text" id="fb_api_key"
                 placeholder="123456789"></div>
             <div class="field"><span class="field-label">App ID</span><input type="password" id="fb_api_secret"
@@ -953,11 +1012,12 @@
             </div>
           </div>
 
-          <div class="s-card">
+          <div class="s-card" id="card-threads">
             <div class="s-card-title">
               <span class="s-dot" style="background:#aaa"></span>Threads
               <span class="conn-status conn-no" id="th-conn">未接続</span>
             </div>
+            <div class="connected-banner">✓ APIキーが設定済みで接続されています</div>
             <div class="field"><span class="field-label">User ID</span><input type="text" id="th_api_key"
                 placeholder="123456789"></div>
             <div class="field"><span class="field-label">App ID</span><input type="password" id="th_api_secret"
@@ -1400,10 +1460,26 @@
       setTimeout(() => el.classList.remove('show'), 2500);
     }
 
+    // カードの接続状態をUIに反映するヘルパー
+    function setCardConnected(platform, isConnected) {
+      const idMap = { x: 'x', facebook: 'facebook', threads: 'threads' };
+      const connIdMap = { x: 'x-conn', facebook: 'fb-conn', threads: 'th-conn' };
+      const card = document.getElementById(`card-${idMap[platform]}`);
+      const badge = document.getElementById(connIdMap[platform]);
+      if (!card || !badge) return;
+      if (isConnected) {
+        card.classList.add('connected');
+        badge.className = 'conn-status conn-yes';
+        badge.textContent = '接続済み';
+      } else {
+        card.classList.remove('connected');
+        badge.className = 'conn-status conn-no';
+        badge.textContent = '未接続';
+      }
+    }
+
     async function saveSettings(platform) {
       let config = {};
-
-      // --- ここに各プラットフォームの値をフォームから取得する処理を追加 ---
       if (platform === 'x') {
         config = {
           api_key: document.getElementById('x-api-key').value,
@@ -1426,63 +1502,51 @@
           access_token_secret: document.getElementById('th_access_token_secret').value
         };
       }
-      console.log("送信しようとしている値:", config);
 
       try {
-        const resp = await fetch(`/api/settings/${platform}`, {
+        const resp = await apiFetch(`/api/settings/${platform}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('token')
-          },
-          body: JSON.stringify({ config: config })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config })
         });
-
         if (resp.ok) {
-          const data = await resp.json();
-          alert(data.message || '保存しました');
-          location.reload();
+          const hasKeys = Object.values(config).some(v => v && v.trim());
+          setCardConnected(platform, hasKeys);
+          toast('✅ 保存しました');
         } else {
           const error = await resp.json();
-          alert('保存失敗: ' + (error.detail || '不明なエラー'));
+          toast('❌ 保存失敗: ' + (error.detail || '不明なエラー'));
         }
       } catch (e) {
-        alert('サーバーに接続できません: ' + e.message);
+        toast('サーバーに接続できません: ' + e.message);
       }
     }
 
     async function testConn(platform) {
+      toast('🔄 接続テスト中...');
       try {
-        // 相対パスで叩くのが最も確実です
-        const r = await fetch(`/api/settings/test/${platform}`, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + localStorage.getItem('token')
-          }
-        });
-
+        const r = await apiFetch(`/api/settings/test/${platform}`, { method: 'POST' });
         const data = await r.json();
-        if (r.ok) {
-          toast('✅ 接続OK');
-          loadSettings(); // 設定画面の再描画
+        if (r.ok && data.success) {
+          setCardConnected(platform, true);
+          toast('✅ 接続OK！');
         } else {
-          toast('❌ ' + (data.detail || data.message || '接続失敗'));
+          setCardConnected(platform, false);
+          toast('❌ ' + (data.message || data.detail || '接続失敗'));
         }
       } catch (e) {
-        console.error(e);
         toast('サーバーに接続できません');
       }
     }
 
     async function loadSettings(platform) {
       try {
-        const resp = await fetch(`/api/settings/${platform}`, {
-          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-        });
+        const resp = await apiFetch(`/api/settings/${platform}`);
         const data = await resp.json();
         if (!resp.ok || !data.config) return;
 
         const cfg = data.config;
+        setCardConnected(platform, !!data.is_connected);
 
         if (platform === 'x') {
           document.getElementById('x-api-key').value = cfg.api_key || '';
@@ -1490,7 +1554,7 @@
           document.getElementById('x-access-token').value = cfg.access_token || '';
           document.getElementById('x_access_token_secret').value = cfg.access_token_secret || '';
         } else if (platform === 'facebook') {
-          document.getElementById('fb_api_key').value = cfg.api_key || ''; // HTMLのidに合わせています
+          document.getElementById('fb_api_key').value = cfg.api_key || '';
           document.getElementById('fb_api_secret').value = cfg.api_secret || '';
           document.getElementById('fb-access-token').value = cfg.access_token || '';
           document.getElementById('fb_access_token_secret').value = cfg.access_token_secret || '';
