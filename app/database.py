@@ -8,9 +8,6 @@ from datetime import datetime
 import enum
 import os
 from dotenv import load_dotenv
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt
 
 load_dotenv()
 
@@ -79,13 +76,5 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
-    finally:
-        db.close()
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    db = SessionLocal()
-    try:
-        return User
     finally:
         db.close()

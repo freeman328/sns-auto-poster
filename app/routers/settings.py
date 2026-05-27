@@ -8,7 +8,8 @@ from typing import Dict, Any, Optional
 import tweepy
 import requests
 
-from ..database import get_db, Settings, User, get_current_user
+from ..database import get_db, Settings, User
+from ..auth import get_current_user
 from fastapi import Depends
 
 router = APIRouter()
