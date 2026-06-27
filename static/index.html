@@ -457,24 +457,82 @@
 
     .preview-row {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
       margin-bottom: 10px;
     }
 
     .preview-item {
       position: relative;
-      width: 72px;
-      height: 72px;
+      width: 100px;
+      height: 100px;
       border-radius: var(--radius);
       overflow: hidden;
-      border: 1px solid var(--border2);
+      border: 2px solid var(--border2);
+      background: var(--surface2);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+      transition: border-color var(--transition);
+    }
+
+    .preview-item:hover {
+      border-color: var(--accent);
     }
 
     .preview-item img {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
+    }
+
+    /* 履歴のサムネイル */
+    .pi-images {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 6px 0 4px;
+    }
+
+    .pi-thumb {
+      width: 56px;
+      height: 56px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid var(--border2);
+      cursor: pointer;
+      transition: opacity var(--transition);
+    }
+
+    .pi-thumb:hover {
+      opacity: 0.85;
+    }
+
+    /* 画像ライトボックス */
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .lightbox.show { display: flex; }
+    .lightbox img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 20px; right: 24px;
+      font-size: 28px;
+      color: #fff;
+      cursor: pointer;
+      line-height: 1;
+      background: none;
+      border: none;
     }
 
     .preview-remove {
@@ -1691,6 +1749,12 @@
     </div><!-- /.main -->
   </div><!-- /.layout -->
 
+  <!-- ── ライトボックス ── -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+    <img id="lightbox-img" src="" alt="プレビュー">
+  </div>
+
   <!-- ── 再投稿モーダル ── -->
   <div class="modal-overlay" id="repost-modal" onclick="handleModalClick(event)">
     <div class="modal-box">
@@ -2151,12 +2215,17 @@
         const excerpt = item.text.length > 120 ? item.text.slice(0, 120) + '…' : item.text;
         const errHtml = item.error_message
           ? `<span style="font-size:11px;color:var(--danger);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(item.error_message)}">⚠ ${escHtml(item.error_message)}</span>` : '';
+        const imagesHtml = (item.image_urls || []).length
+          ? `<div class="pi-images">${item.image_urls.map(u =>
+              `<img class="pi-thumb" src="${escHtml(u)}" loading="lazy" onclick="openLightbox('${escHtml(u)}')" title="クリックで拡大">`
+            ).join('')}</div>` : '';
         return `<div class="post-item">
       <div class="pi-header">
         <div class="pi-platforms">${platforms}</div>
         <span class="pi-time">${time}</span>
       </div>
       <div class="pi-text">${escHtml(excerpt)}</div>
+      ${imagesHtml}
       <div class="pi-footer">
         <span class="pi-badge ${statusCls}">${statusTxt}</span>
         ${errHtml}
@@ -2176,6 +2245,16 @@
     function debounceSearch() {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(renderHistory, 200);
+    }
+
+    function openLightbox(url) {
+      document.getElementById('lightbox-img').src = url;
+      document.getElementById('lightbox').classList.add('show');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('show');
+      document.getElementById('lightbox-img').src = '';
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
