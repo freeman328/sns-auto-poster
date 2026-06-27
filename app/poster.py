@@ -81,8 +81,9 @@ def post_to_x(text: str, image_urls: List[str], config: dict) -> dict:
 def post_to_facebook(text: str, image_urls: List[str], config: dict) -> dict:
     """Facebook Graph API でページ投稿"""
     try:
-        page_id = config["page_id"]
-        access_token = config["page_access_token"]
+        # UIから保存される形式に合わせて両方のキー名に対応
+        page_id = config.get("page_id") or config.get("api_key")
+        access_token = config.get("page_access_token") or config.get("access_token_secret")
         base_url = "https://graph.facebook.com/v18.0"
 
         if image_urls:

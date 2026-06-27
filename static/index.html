@@ -4,27 +4,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SNS自動投稿ツール</title>
+  <title>SNS AutoPost</title>
   <style>
     :root {
-      --bg: #0f0f11;
-      --bg2: #18181c;
-      --bg3: #222228;
-      --border: rgba(255, 255, 255, 0.08);
-      --border2: rgba(255, 255, 255, 0.14);
-      --text: #f0f0f2;
-      --text2: #9898a8;
-      --text3: #5a5a6a;
-      --accent: #7c6dfa;
-      --accent2: #5b4ed4;
+      --bg: #0a0a0f;
+      --bg2: #111118;
+      --bg3: #1a1a24;
+      --bg4: #22222e;
+      --border: rgba(255, 255, 255, 0.07);
+      --border2: rgba(255, 255, 255, 0.12);
+      --text: #f0f0f4;
+      --text2: #8888a0;
+      --text3: #44445a;
+      --accent: #6c63ff;
+      --accent2: #5048d4;
+      --accent-glow: rgba(108, 99, 255, 0.3);
       --success: #22c55e;
       --warning: #f59e0b;
       --danger: #ef4444;
-      --x: #e7e9ea;
-      --fb: #1877F2;
-      --th: #101010;
+      --x-color: #e7e9ea;
+      --fb-color: #1877F2;
+      --th-color: #aaaaaa;
       --radius: 10px;
-      --radius-lg: 14px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --sidebar-w: 230px;
+      --transition: 0.18s ease;
     }
 
     * {
@@ -36,38 +41,68 @@
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', system-ui, sans-serif;
       font-size: 14px;
       line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
 
+    /* ── Layout ── */
     .layout {
       display: flex;
       min-height: 100vh;
     }
 
-    /* Sidebar */
+    /* ── Sidebar ── */
     .sidebar {
-      width: 220px;
+      width: var(--sidebar-w);
       background: var(--bg2);
       border-right: 1px solid var(--border);
-      padding: 20px 12px;
+      padding: 16px 10px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 2px;
       flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
     }
 
     .logo {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text);
-      padding: 8px 12px 20px;
-      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px 20px;
     }
 
-    .logo span {
-      color: var(--accent);
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      background: linear-gradient(120deg, var(--text), #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-group-label {
+      font-size: 10px;
+      color: var(--text3);
+      padding: 12px 12px 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 600;
     }
 
     .nav-item {
@@ -79,7 +114,8 @@
       cursor: pointer;
       color: var(--text2);
       font-size: 13px;
-      transition: all 0.15s;
+      font-weight: 450;
+      transition: all var(--transition);
       border: none;
       background: none;
       width: 100%;
@@ -92,32 +128,88 @@
     }
 
     .nav-item.active {
-      background: rgba(124, 109, 250, 0.15);
-      color: var(--accent);
-      font-weight: 500;
+      background: rgba(108, 99, 255, 0.12);
+      color: #a78bfa;
+      font-weight: 550;
+    }
+
+    .nav-item.active .nav-icon-svg path,
+    .nav-item.active .nav-icon-svg circle,
+    .nav-item.active .nav-icon-svg rect {
+      stroke: #a78bfa;
     }
 
     .nav-icon {
-      font-size: 16px;
-      width: 20px;
-      text-align: center;
+      width: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .nav-icon svg {
+      width: 16px;
+      height: 16px;
     }
 
     .nav-sep {
       height: 1px;
       background: var(--border);
-      margin: 8px 0;
+      margin: 6px 0;
     }
 
-    .nav-label {
+    .user-menu {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 12px;
+    }
+
+    .user-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .user-name {
+      font-size: 12px;
+      color: var(--text2);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .logout-btn {
       font-size: 11px;
+      background: transparent;
+      border: 1px solid var(--border2);
       color: var(--text3);
-      padding: 4px 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      padding: 3px 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all var(--transition);
+      flex-shrink: 0;
     }
 
-    /* Main */
+    .logout-btn:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+      background: rgba(239, 68, 68, 0.05);
+    }
+
+    /* ── Main ── */
     .main {
       flex: 1;
       overflow-y: auto;
@@ -125,33 +217,52 @@
 
     .page {
       display: none;
-      padding: 28px 32px;
-      max-width: 780px;
+      padding: 32px 36px;
+      max-width: 800px;
     }
 
     .page.active {
       display: block;
     }
 
+    .page-header {
+      margin-bottom: 28px;
+    }
+
     .page-title {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 24px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
       color: var(--text);
     }
 
-    /* Cards */
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text2);
+      margin-top: 3px;
+    }
+
+    /* ── Cards ── */
     .card {
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 20px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
+      transition: border-color var(--transition);
     }
 
-    /* Form elements */
+    .card:hover {
+      border-color: var(--border2);
+    }
+
+    /* ── Form ── */
     .field {
-      margin-bottom: 16px;
+      margin-bottom: 14px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
     }
 
     .field-label {
@@ -159,7 +270,7 @@
       color: var(--text2);
       margin-bottom: 6px;
       display: block;
-      font-weight: 500;
+      font-weight: 550;
     }
 
     textarea,
@@ -167,6 +278,7 @@
     input[type="date"],
     input[type="time"],
     input[type="password"],
+    input[type="email"],
     select {
       width: 100%;
       background: var(--bg3);
@@ -174,20 +286,22 @@
       border-radius: var(--radius);
       color: var(--text);
       font-size: 14px;
-      padding: 10px 12px;
+      padding: 10px 13px;
       font-family: inherit;
-      transition: border-color 0.15s;
+      transition: border-color var(--transition), box-shadow var(--transition);
       outline: none;
+      appearance: none;
     }
 
     textarea:focus,
     input:focus,
     select:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.12);
     }
 
     textarea {
-      min-height: 110px;
+      min-height: 120px;
       resize: vertical;
     }
 
@@ -195,7 +309,7 @@
       background: var(--bg3);
     }
 
-    /* Platform toggle */
+    /* ── Platform toggles ── */
     .platform-row {
       display: flex;
       gap: 8px;
@@ -212,70 +326,118 @@
       background: transparent;
       cursor: pointer;
       font-size: 13px;
+      font-weight: 500;
       color: var(--text2);
       font-family: inherit;
-      transition: all 0.15s;
+      transition: all var(--transition);
     }
 
     .platform-btn:hover {
-      border-color: var(--border2);
       background: var(--bg3);
+      border-color: var(--border2);
     }
 
     .platform-btn.active {
       border-color: var(--accent);
-      background: rgba(124, 109, 250, 0.1);
+      background: rgba(108, 99, 255, 0.1);
       color: var(--text);
     }
 
-    .p-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
+    .platform-btn.active.p-x {
+      border-color: #888;
+      background: rgba(255, 255, 255, 0.06);
     }
 
-    .p-dot-x {
-      background: var(--x);
+    .platform-btn.active.p-fb {
+      border-color: var(--fb-color);
+      background: rgba(24, 119, 242, 0.1);
     }
 
-    .p-dot-fb {
-      background: var(--fb);
+    .platform-btn.active.p-th {
+      border-color: #555;
+      background: rgba(170, 170, 170, 0.08);
     }
 
-    .p-dot-th {
-      background: #aaa;
+    .p-logo {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    /* Char counter */
-    .char-row {
+    .p-logo svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ── Char counter ── */
+    .char-bar-wrap {
+      margin-top: 8px;
+    }
+
+    .char-info {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 4px;
+      font-size: 11px;
+      color: var(--text3);
+      margin-bottom: 4px;
+    }
+
+    .char-bar-bg {
+      height: 2px;
+      background: var(--bg4);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+
+    .char-bar {
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+      border-radius: 1px;
+      transition: width 0.2s, background 0.2s;
+    }
+
+    .char-bar.warn {
+      background: var(--warning);
+    }
+
+    .char-bar.over {
+      background: var(--danger);
     }
 
     .char-count {
-      font-size: 12px;
-      color: var(--text3);
+      font-weight: 600;
     }
 
-    /* Upload */
+    .char-count.warn {
+      color: var(--warning);
+    }
+
+    .char-count.over {
+      color: var(--danger);
+    }
+
+    /* ── Upload ── */
     .upload-zone {
       border: 1.5px dashed var(--border2);
       border-radius: var(--radius);
-      padding: 18px;
+      padding: 20px;
       text-align: center;
       cursor: pointer;
       color: var(--text3);
       font-size: 13px;
       position: relative;
-      transition: all 0.15s;
+      transition: all var(--transition);
     }
 
     .upload-zone:hover {
       border-color: var(--accent);
       color: var(--text2);
-      background: rgba(124, 109, 250, 0.04);
+      background: rgba(108, 99, 255, 0.04);
     }
 
     .upload-zone input {
@@ -285,18 +447,62 @@
       cursor: pointer;
     }
 
+    .upload-icon {
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
     .preview-row {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
-    /* Timing */
+    .preview-item {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border2);
+    }
+
+    .preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .preview-remove {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 18px;
+      height: 18px;
+      background: rgba(0, 0, 0, 0.75);
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      font-size: 11px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--transition);
+    }
+
+    .preview-remove:hover {
+      background: var(--danger);
+    }
+
+    /* ── Timing ── */
     .timing-row {
       display: flex;
-      gap: 16px;
-      margin-bottom: 12px;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
     }
 
     .radio-opt {
@@ -318,25 +524,74 @@
       gap: 10px;
     }
 
-    /* Buttons */
+    .repeat-note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text2);
+      background: rgba(108, 99, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(108, 99, 255, 0.2);
+    }
+
+    /* ── Weekday picker ── */
+    .weekday-row {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .wday-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--border2);
+      background: transparent;
+      color: var(--text2);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition);
+    }
+
+    .wday-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    /* ── Buttons ── */
     .btn {
       padding: 9px 20px;
       border-radius: var(--radius);
       font-size: 13px;
       cursor: pointer;
       font-family: inherit;
-      font-weight: 500;
+      font-weight: 550;
       border: none;
-      transition: all 0.15s;
+      transition: all var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .btn-primary {
-      background: var(--accent);
+      background: linear-gradient(135deg, var(--accent), #8b7ffa);
       color: #fff;
+      box-shadow: 0 2px 12px rgba(108, 99, 255, 0.3);
     }
 
     .btn-primary:hover {
-      background: var(--accent2);
+      background: linear-gradient(135deg, var(--accent2), #7468e0);
+      box-shadow: 0 4px 16px rgba(108, 99, 255, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
     }
 
     .btn-ghost {
@@ -348,17 +603,22 @@
     .btn-ghost:hover {
       background: var(--bg3);
       color: var(--text);
+      border-color: var(--border2);
     }
 
-    .btn-danger {
+    .btn-danger-sm {
       background: transparent;
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      border: 1px solid rgba(239, 68, 68, 0.25);
       color: var(--danger);
       font-size: 12px;
       padding: 5px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition);
     }
 
-    .btn-danger:hover {
+    .btn-danger-sm:hover {
       background: rgba(239, 68, 68, 0.1);
     }
 
@@ -366,16 +626,21 @@
       display: flex;
       gap: 8px;
       justify-content: flex-end;
-      padding-top: 4px;
+      padding-top: 6px;
     }
 
-    /* Post items */
+    /* ── Post items ── */
     .post-item {
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 14px 16px;
       margin-bottom: 10px;
+      transition: border-color var(--transition);
+    }
+
+    .post-item:hover {
+      border-color: var(--border2);
     }
 
     .pi-header {
@@ -388,102 +653,170 @@
     .pi-platforms {
       display: flex;
       gap: 5px;
+      flex-wrap: wrap;
     }
 
     .pi-badge {
       font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 10px;
-      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
     }
 
     .pi-time {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text3);
+      white-space: nowrap;
     }
 
     .pi-text {
       font-size: 13px;
       color: var(--text2);
-      line-height: 1.5;
-      margin-bottom: 8px;
+      line-height: 1.55;
+      margin-bottom: 10px;
     }
 
     .pi-footer {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-    }
-
-    .pi-actions {
-      display: flex;
-      gap: 6px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     /* Status badges */
     .s-pending {
-      background: rgba(245, 158, 11, 0.15);
+      background: rgba(245, 158, 11, 0.12);
       color: var(--warning);
     }
 
     .s-posted {
-      background: rgba(34, 197, 94, 0.12);
+      background: rgba(34, 197, 94, 0.10);
       color: var(--success);
     }
 
     .s-failed {
-      background: rgba(239, 68, 68, 0.12);
+      background: rgba(239, 68, 68, 0.10);
       color: var(--danger);
     }
 
     .s-draft {
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text3);
     }
 
+    /* Platform badges */
     .pb-x {
-      background: rgba(231, 233, 234, 0.1);
-      color: #e7e9ea;
+      background: rgba(255, 255, 255, 0.07);
+      color: #c8cacb;
     }
 
-    .pb-fb {
-      background: rgba(24, 119, 242, 0.15);
+    .pb-facebook {
+      background: rgba(24, 119, 242, 0.12);
       color: #5ca0f7;
     }
 
-    .pb-th {
-      background: rgba(255, 255, 255, 0.07);
-      color: #aaa;
+    .pb-threads {
+      background: rgba(255, 255, 255, 0.06);
+      color: #999;
     }
 
-    /* Stats grid */
+    /* ── Stats ── */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
     }
 
     .stat-card {
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 16px;
+      padding: 18px 16px;
+      transition: border-color var(--transition), transform var(--transition);
+    }
+
+    .stat-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-1px);
+    }
+
+    .stat-icon {
+      font-size: 20px;
+      margin-bottom: 10px;
     }
 
     .stat-num {
-      font-size: 28px;
-      font-weight: 700;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -1px;
       color: var(--text);
     }
 
     .stat-label {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text3);
-      margin-top: 2px;
+      margin-top: 3px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
-    /* Settings */
+    .platform-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .pstat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pstat-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .pstat-icon.x-icon {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .pstat-icon.fb-icon {
+      background: rgba(24, 119, 242, 0.12);
+    }
+
+    .pstat-icon.th-icon {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .pstat-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pstat-name {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .pstat-count {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    /* ── Settings ── */
     .settings-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -494,56 +827,74 @@
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 16px;
+      padding: 18px;
       transition: border-color 0.3s, box-shadow 0.3s;
     }
 
     .s-card.connected {
-      border-color: rgba(34, 197, 94, 0.5);
-      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.15), 0 4px 16px rgba(34, 197, 94, 0.08);
-      background: linear-gradient(135deg, var(--bg2) 0%, rgba(34, 197, 94, 0.04) 100%);
+      border-color: rgba(34, 197, 94, 0.4);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.12), 0 4px 20px rgba(34, 197, 94, 0.06);
+    }
+
+    .s-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
     }
 
     .s-card-title {
       font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 12px;
+      font-weight: 650;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
+    .s-platform-icon {
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .s-platform-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
     .conn-status {
       font-size: 11px;
-      padding: 3px 10px;
+      padding: 3px 9px;
       border-radius: 20px;
+      font-weight: 600;
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      font-weight: 500;
     }
 
     .conn-yes {
-      background: rgba(34, 197, 94, 0.15);
+      background: rgba(34, 197, 94, 0.12);
       color: #4ade80;
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      border: 1px solid rgba(34, 197, 94, 0.25);
     }
 
     .conn-yes::before {
       content: '●';
-      font-size: 7px;
+      font-size: 6px;
       animation: pulse-dot 2s infinite;
     }
 
     .conn-no {
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.04);
       color: var(--text3);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
     }
 
     .conn-no::before {
       content: '○';
-      font-size: 8px;
+      font-size: 7px;
     }
 
     @keyframes pulse-dot {
@@ -554,12 +905,8 @@
       }
 
       50% {
-        opacity: 0.4;
+        opacity: 0.3;
       }
-    }
-
-    .s-card.connected .s-card-header-icon {
-      filter: drop-shadow(0 0 6px currentColor);
     }
 
     .connected-banner {
@@ -568,21 +915,56 @@
       gap: 6px;
       font-size: 11px;
       color: #4ade80;
-      background: rgba(34, 197, 94, 0.08);
-      border: 1px solid rgba(34, 197, 94, 0.2);
+      background: rgba(34, 197, 94, 0.07);
+      border: 1px solid rgba(34, 197, 94, 0.18);
       border-radius: 8px;
       padding: 6px 10px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     .s-card.connected .connected-banner {
       display: flex;
     }
 
-    /* Search */
+    .help-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+    }
+
+    .help-card-title {
+      font-size: 13px;
+      font-weight: 650;
+      margin-bottom: 14px;
+      color: var(--text);
+    }
+
+    .help-item {
+      margin-bottom: 12px;
+    }
+
+    .help-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .help-item strong {
+      display: block;
+      color: var(--text);
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+
+    .help-item p {
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+
+    /* ── Search ── */
     .search-bar {
       position: relative;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .search-bar input {
@@ -595,43 +977,91 @@
       top: 50%;
       transform: translateY(-50%);
       color: var(--text3);
-      font-size: 14px;
     }
 
-    /* Toast */
-    #toast {
+    .filter-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .filter-chip {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      border: 1px solid var(--border2);
+      background: transparent;
+      color: var(--text2);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition);
+    }
+
+    .filter-chip:hover {
+      background: var(--bg3);
+    }
+
+    .filter-chip.active {
+      border-color: var(--accent);
+      background: rgba(108, 99, 255, 0.1);
+      color: var(--text);
+    }
+
+    /* ── Toast ── */
+    .toast-container {
       position: fixed;
       bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .toast {
       background: var(--bg3);
       border: 1px solid var(--border2);
       color: var(--text);
-      padding: 10px 20px;
-      border-radius: 20px;
+      padding: 10px 18px;
+      border-radius: 40px;
       font-size: 13px;
+      font-weight: 500;
       opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s;
-      z-index: 9999;
-    }
-
-    #toast.show {
-      opacity: 1;
-    }
-
-    .empty {
+      transform: translateY(8px) scale(0.96);
+      transition: opacity 0.22s, transform 0.22s;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      max-width: 380px;
       text-align: center;
-      padding: 40px;
-      color: var(--text3);
-      font-size: 13px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
 
-    /* ── ログイン画面オーバーレイ ── */
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .toast.success {
+      border-color: rgba(34, 197, 94, 0.3);
+      background: rgba(34, 197, 94, 0.08);
+    }
+
+    .toast.error {
+      border-color: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    /* ── Login ── */
     .login-wrap {
       position: fixed;
       inset: 0;
-      background: var(--bg);
+      background: radial-gradient(ellipse at 30% 20%, rgba(108, 99, 255, 0.08) 0%, var(--bg) 60%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -641,51 +1071,69 @@
     .login-card {
       background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 32px;
+      border-radius: var(--radius-xl);
+      padding: 36px;
       width: 100%;
       max-width: 380px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(108, 99, 255, 0.08);
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .login-logo-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      margin: 0 auto 10px;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
     }
 
     .login-title {
-      font-size: 24px;
-      font-weight: 700;
-      margin-bottom: 4px;
-      text-align: center;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
     }
 
     .login-subtitle {
       font-size: 13px;
-      color: var(--text3);
-      margin-bottom: 24px;
-      text-align: center;
+      color: var(--text2);
+      margin-top: 3px;
     }
 
     .login-tabs {
       display: flex;
       gap: 4px;
       margin-bottom: 20px;
-      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+      padding: 4px;
+      border-radius: var(--radius);
     }
 
     .login-tab {
       flex: 1;
-      padding: 10px;
-      font-size: 14px;
+      padding: 8px;
+      font-size: 13px;
+      font-weight: 550;
       cursor: pointer;
       border: none;
       background: none;
       color: var(--text2);
-      border-bottom: 2px solid transparent;
+      border-radius: 7px;
       font-family: inherit;
-      text-align: center;
+      transition: all var(--transition);
     }
 
     .login-tab.active {
+      background: var(--bg2);
       color: var(--text);
-      border-bottom-color: var(--accent);
-      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
     }
 
     .login-error {
@@ -693,7 +1141,7 @@
       color: var(--danger);
       margin-bottom: 14px;
       padding: 10px 12px;
-      background: rgba(239, 68, 68, 0.1);
+      background: rgba(239, 68, 68, 0.08);
       border-radius: var(--radius);
       display: none;
       border: 1px solid rgba(239, 68, 68, 0.2);
@@ -703,83 +1151,112 @@
       display: block;
     }
 
-    /* ユーザーナビメニュー */
-    .user-menu {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px;
-      border-top: 1px solid var(--border);
-      margin-top: auto;
-    }
-
-    .user-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: var(--accent);
-      display: flex;
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
-      font-weight: 600;
-      color: #fff;
     }
 
-    .user-name {
-      font-size: 13px;
-      color: var(--text2);
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .modal-overlay.open {
+      display: flex;
     }
 
-    .logout-btn {
-      font-size: 11px;
-      background: transparent;
+    .modal-box {
+      background: var(--bg2);
       border: 1px solid var(--border2);
-      color: var(--text2);
-      padding: 4px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s;
+      border-radius: var(--radius-xl);
+      padding: 26px;
+      width: min(460px, 92vw);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
     }
 
-    .logout-btn:hover {
-      color: var(--danger);
-      border-color: var(--danger);
-      background: rgba(239, 68, 68, 0.05);
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text);
     }
 
-    .wday-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: 1px solid var(--border2);
-      background: transparent;
-      color: var(--text2);
+    .modal-preview {
       font-size: 12px;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.15s;
+      color: var(--text2);
+      background: var(--bg3);
+      border-radius: var(--radius);
+      padding: 10px 13px;
+      max-height: 80px;
+      overflow-y: auto;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
     }
 
-    .wday-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
+    /* ── Empty state ── */
+    .empty {
+      text-align: center;
+      padding: 56px 24px;
+      color: var(--text3);
+      font-size: 13px;
+    }
+
+    .empty-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .empty-title {
+      font-size: 15px;
       font-weight: 600;
+      color: var(--text2);
+      margin-bottom: 4px;
+    }
+
+    .empty-sub {
+      font-size: 12px;
+    }
+
+    /* ── Skeleton loader ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--radius);
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 200% 0
+      }
+
+      100% {
+        background-position: -200% 0
+      }
+    }
+
+    .error-msg {
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 4px;
     }
   </style>
 </head>
 
 <body>
 
+  <!-- ── ログイン ── -->
   <div class="login-wrap" id="login-wrap">
     <div class="login-card">
-      <div class="login-title">SNS<span style="color:var(--accent)">Post</span></div>
-      <div class="login-subtitle">投稿システムにログインしてください</div>
+      <div class="login-logo">
+        <div class="login-logo-icon">📡</div>
+        <div class="login-title">SNS AutoPost</div>
+        <div class="login-subtitle">SNS自動投稿ツール</div>
+      </div>
 
       <div class="login-tabs">
         <button class="login-tab active" id="tab-login" onclick="switchLoginTab('login')">ログイン</button>
@@ -790,58 +1267,101 @@
 
       <div id="lf-login">
         <div class="field">
-          <span class="field-label">メールアドレス / ユーザー名</span>
-          <input type="text" id="login-username" placeholder="name@example.com">
+          <span class="field-label">ユーザー名 / メールアドレス</span>
+          <input type="text" id="login-username" placeholder="example_user" autocomplete="username">
         </div>
         <div class="field">
           <span class="field-label">パスワード</span>
-          <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAuth()">
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
+            onkeydown="if(event.key==='Enter')doAuth()">
         </div>
-        <button class="btn btn-primary" style="width:100%; margin-top:8px; height:40px;"
+        <button class="btn btn-primary"
+          style="width:100%;justify-content:center;height:42px;margin-top:10px;font-size:14px;"
           onclick="doAuth()">ログイン</button>
       </div>
 
       <div id="lf-register" style="display:none">
         <div class="field">
           <span class="field-label">ユーザー名</span>
-          <input type="text" id="reg-username" placeholder="example_user">
+          <input type="text" id="reg-username" placeholder="example_user" autocomplete="username">
         </div>
         <div class="field">
           <span class="field-label">メールアドレス</span>
-          <input type="text" id="reg-email" placeholder="name@example.com">
+          <input type="email" id="reg-email" placeholder="name@example.com" autocomplete="email">
         </div>
         <div class="field">
           <span class="field-label">パスワード（6文字以上）</span>
-          <input type="password" id="reg-password" placeholder="••••••••">
+          <input type="password" id="reg-password" placeholder="••••••••" autocomplete="new-password">
         </div>
-        <button class="btn btn-primary" style="width:100%; margin-top:8px; height:40px;"
-          onclick="doAuth()">アカウント登録</button>
+        <button class="btn btn-primary"
+          style="width:100%;justify-content:center;height:42px;margin-top:10px;font-size:14px;"
+          onclick="doAuth()">アカウント作成</button>
       </div>
     </div>
   </div>
 
+  <!-- ── メインレイアウト ── -->
   <div class="layout">
     <nav class="sidebar">
-      <div class="logo">SNS<span>Post</span></div>
+      <div class="logo">
+        <div class="logo-icon">📡</div>
+        <span class="logo-text">AutoPost</span>
+      </div>
+
       <button class="nav-item active" onclick="showPage('compose',this)">
-        <span class="nav-icon">✏️</span><span>投稿作成</span>
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </span>
+        <span>投稿作成</span>
       </button>
       <button class="nav-item" onclick="showPage('schedule',this)">
-        <span class="nav-icon">🕐</span><span>スケジュール</span>
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+        </span>
+        <span>スケジュール</span>
       </button>
       <button class="nav-item" onclick="showPage('history',this)">
-        <span class="nav-icon">📋</span><span>投稿履歴</span>
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+          </svg>
+        </span>
+        <span>投稿履歴</span>
       </button>
       <button class="nav-item" onclick="showPage('stats',this)">
-        <span class="nav-icon">📊</span><span>統計</span>
-      </button>
-      <div class="nav-sep"></div>
-      <div class="nav-label">設定</div>
-      <button class="nav-item" onclick="showPage('settings',this)">
-        <span class="nav-icon">⚙️</span><span>APIキー</span>
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+        </span>
+        <span>統計</span>
       </button>
 
-      <div class="user-menu">
+      <div class="nav-sep"></div>
+      <div class="nav-group-label">設定</div>
+
+      <button class="nav-item" onclick="showPage('settings',this)">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </span>
+        <span>APIキー</span>
+      </button>
+
+      <div class="user-menu" id="user-menu-wrap">
         <div class="user-avatar" id="user-avatar">U</div>
         <span class="user-name" id="user-name-disp">ユーザー</span>
         <button class="logout-btn" onclick="doLogout()">ログアウト</button>
@@ -849,42 +1369,74 @@
     </nav>
 
     <div class="main">
+
+      <!-- ── 投稿作成 ── -->
       <div class="page active" id="page-compose">
-        <div class="page-title">投稿作成</div>
+        <div class="page-header">
+          <div class="page-title">投稿作成</div>
+          <div class="page-subtitle">X・Threads・Facebookに一括投稿またはスケジュール予約</div>
+        </div>
+
         <div class="card">
+          <!-- 投稿先 -->
           <div class="field">
-            <span class="field-label">投稿先</span>
+            <span class="field-label">投稿先プラットフォーム</span>
             <div class="platform-row" id="platform-row">
-              <button class="platform-btn active" data-p="x" onclick="togglePlatform(this)">
-                <span class="p-dot p-dot-x"></span>X
+              <button class="platform-btn p-x active" data-p="x" onclick="togglePlatform(this)">
+                <span class="p-logo">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </span>X
               </button>
-              <button class="platform-btn" data-p="facebook" onclick="togglePlatform(this)">
-                <span class="p-dot p-dot-fb"></span>Facebook
+              <button class="platform-btn p-fb" data-p="facebook" onclick="togglePlatform(this)">
+                <span class="p-logo">
+                  <svg viewBox="0 0 24 24" fill="#1877F2">
+                    <path
+                      d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                  </svg>
+                </span>Facebook
               </button>
-              <button class="platform-btn" data-p="threads" onclick="togglePlatform(this)">
-                <span class="p-dot p-dot-th"></span>Threads
+              <button class="platform-btn p-th" data-p="threads" onclick="togglePlatform(this)">
+                <span class="p-logo">
+                  <svg viewBox="0 0 24 24" fill="currentColor" style="color:#aaa">
+                    <path
+                      d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.471 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 1.327-.012 2.47-.216 3.392-.607 1.054-.44 1.818-1.098 2.274-1.956.464-.87.7-1.942.7-3.186 0-1.237-.24-2.287-.714-3.12-.475-.836-1.202-1.457-2.154-1.843a9.476 9.476 0 0 0-1.086-.317l.029-.147c.19-.96.57-2.086 1.5-3.048.755-.782 1.756-1.196 2.978-1.237.006-.001.012 0 .018 0 2.256.007 4.023 1.116 5.143 3.21.897 1.678 1.35 3.874 1.35 6.534 0 1.765-.29 3.346-.86 4.694-.578 1.362-1.437 2.476-2.554 3.31-1.127.843-2.496 1.43-4.07 1.746-.953.19-1.972.285-3.025.285z" />
+                  </svg>
+                </span>Threads
               </button>
             </div>
           </div>
 
+          <!-- テキスト -->
           <div class="field">
-            <span class="field-label">テキスト</span>
-            <textarea id="post-text" placeholder="投稿内容を入力..." oninput="updateCounter()"></textarea>
-            <div class="char-row">
-              <span style="font-size:11px;color:var(--text3)">X: 280字 / Threads: 500字</span>
-              <span class="char-count" id="char-count">0 / 280</span>
+            <span class="field-label">投稿テキスト</span>
+            <textarea id="post-text" placeholder="投稿内容を入力してください..." oninput="updateCounter()"></textarea>
+            <div class="char-bar-wrap">
+              <div class="char-info">
+                <span style="color:var(--text3)">X: 280字 ／ Threads: 500字</span>
+                <span class="char-count" id="char-count">0 / 280</span>
+              </div>
+              <div class="char-bar-bg">
+                <div class="char-bar" id="char-bar"></div>
+              </div>
             </div>
           </div>
 
+          <!-- 画像 -->
           <div class="field">
             <span class="field-label">画像（最大4枚）</span>
             <div class="preview-row" id="preview-row"></div>
-            <div class="upload-zone">
-              <input type="file" accept="image/*" multiple onchange="handleImages(this)">
-              クリックまたはドラッグして画像を追加
+            <div class="upload-zone" id="upload-zone">
+              <input type="file" id="image-input" accept="image/*" multiple onchange="handleImages(this)">
+              <div class="upload-icon">🖼</div>
+              <div>クリックまたはドラッグして画像を追加</div>
+              <div style="font-size:11px;margin-top:4px;color:var(--text3)">JPEG / PNG / GIF / WEBP</div>
             </div>
           </div>
 
+          <!-- タイミング -->
           <div class="field">
             <span class="field-label">投稿タイミング</span>
             <div class="timing-row">
@@ -892,32 +1444,29 @@
                 <input type="radio" name="timing" value="now" checked onchange="onTimingChange()"> 今すぐ投稿
               </label>
               <label class="radio-opt">
-                <input type="radio" name="timing" value="schedule" onchange="onTimingChange()"> 時刻指定
+                <input type="radio" name="timing" value="schedule" onchange="onTimingChange()"> 日時指定
               </label>
             </div>
-
-            <div id="dt-fields" style="display:none;" class="datetime-grid">
+            <div id="dt-fields" style="display:none" class="datetime-grid">
               <div><span class="field-label">日付</span><input type="date" id="sched-date"></div>
               <div><span class="field-label">時刻</span><input type="time" id="sched-time"></div>
             </div>
           </div>
 
-          <div class="field" id="repeat-field" style="display:none;">
-            <span class="field-label">🔁 自動繰り返し</span>
+          <!-- 繰り返し -->
+          <div class="field" id="repeat-field" style="display:none">
+            <span class="field-label">🔁 繰り返し設定</span>
             <div class="timing-row">
-              <label class="radio-opt">
-                <input type="radio" name="repeat" value="none" checked onchange="onRepeatChange()"> 繰り返しなし
-              </label>
-              <label class="radio-opt">
-                <input type="radio" name="repeat" value="daily" onchange="onRepeatChange()"> 毎日
-              </label>
-              <label class="radio-opt">
-                <input type="radio" name="repeat" value="weekly" onchange="onRepeatChange()"> 毎週（曜日指定）
-              </label>
+              <label class="radio-opt"><input type="radio" name="repeat" value="none" checked
+                  onchange="onRepeatChange()"> なし</label>
+              <label class="radio-opt"><input type="radio" name="repeat" value="daily" onchange="onRepeatChange()">
+                毎日</label>
+              <label class="radio-opt"><input type="radio" name="repeat" value="weekly" onchange="onRepeatChange()">
+                毎週（曜日指定）</label>
             </div>
-            <div id="weekday-picker" style="display:none; margin-top:10px;">
-              <span class="field-label" style="margin-bottom:8px;display:block;">投稿する曜日</span>
-              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <div id="weekday-picker" style="display:none">
+              <span class="field-label" style="margin-bottom:6px;display:block;">投稿する曜日</span>
+              <div class="weekday-row">
                 <button type="button" class="wday-btn" data-day="0" onclick="toggleWeekday(this)">月</button>
                 <button type="button" class="wday-btn" data-day="1" onclick="toggleWeekday(this)">火</button>
                 <button type="button" class="wday-btn" data-day="2" onclick="toggleWeekday(this)">水</button>
@@ -927,53 +1476,100 @@
                 <button type="button" class="wday-btn" data-day="6" onclick="toggleWeekday(this)">日</button>
               </div>
             </div>
-            <div id="repeat-note"
-              style="display:none; margin-top:8px; font-size:12px; color:var(--text3); background:rgba(124,109,250,0.08); border-radius:8px; padding:8px 12px; border:1px solid rgba(124,109,250,0.2);">
-              ⚠️ 指定した日時から繰り返します。次回以降は自動で新しいスケジュールが作成されます。
+            <div id="repeat-note" class="repeat-note" style="display:none">
+              ⚠️ 指定日時から繰り返します。次回以降は自動で新しいスケジュールが作成されます。
             </div>
           </div>
 
           <div class="btn-row">
             <button class="btn btn-ghost" onclick="saveDraft()">下書き保存</button>
-            <button class="btn btn-primary" onclick="submitPost()">投稿する</button>
+            <button class="btn btn-primary" onclick="submitPost()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+              投稿する
+            </button>
           </div>
         </div>
       </div>
 
+      <!-- ── スケジュール ── -->
       <div class="page" id="page-schedule">
-        <div class="page-title">スケジュール済み投稿</div>
+        <div class="page-header">
+          <div class="page-title">スケジュール済み投稿</div>
+          <div class="page-subtitle">予約されている投稿の一覧</div>
+        </div>
         <div id="schedule-list">
-          <div class="empty">スケジュールデータを受信中...</div>
+          <div class="empty">
+            <div class="empty-icon">🕐</div>
+            <div class="empty-title">読み込み中...</div>
+          </div>
         </div>
       </div>
 
+      <!-- ── 投稿履歴 ── -->
       <div class="page" id="page-history">
-        <div class="page-title">投稿履歴</div>
-        <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
-          <div class="search-bar" style="flex:1; min-width:200px">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="search-input" placeholder="キーワード検索..." oninput="debounceSearch()">
-          </div>
+        <div class="page-header">
+          <div class="page-title">投稿履歴</div>
+          <div class="page-subtitle">すべての投稿記録</div>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input type="text" id="search-input" placeholder="キーワードで検索..." oninput="debounceSearch()">
+        </div>
+        <div class="filter-row">
+          <button class="filter-chip active" data-filter="all" onclick="filterHistory(this,'all')">すべて</button>
+          <button class="filter-chip" data-filter="posted" onclick="filterHistory(this,'posted')">投稿済み</button>
+          <button class="filter-chip" data-filter="failed" onclick="filterHistory(this,'failed')">失敗</button>
+          <button class="filter-chip" data-filter="draft" onclick="filterHistory(this,'draft')">下書き</button>
         </div>
         <div id="history-list"></div>
       </div>
 
+      <!-- ── 統計 ── -->
       <div class="page" id="page-stats">
-        <div class="page-title">投稿統計</div>
-        <div class="stats-grid" id="stats-grid"></div>
+        <div class="page-header">
+          <div class="page-title">投稿統計</div>
+          <div class="page-subtitle">投稿パフォーマンスの概要</div>
+        </div>
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card skeleton" style="height:90px"></div>
+          <div class="stat-card skeleton" style="height:90px"></div>
+          <div class="stat-card skeleton" style="height:90px"></div>
+          <div class="stat-card skeleton" style="height:90px"></div>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px">プラットフォーム別</div>
+        <div class="platform-stats-grid" id="platform-stats"></div>
       </div>
 
-      <!-- ▸ 設定 -->
+      <!-- ── 設定 ── -->
       <div class="page" id="page-settings">
-        <div class="page-title">APIキー設定</div>
+        <div class="page-header">
+          <div class="page-title">APIキー設定</div>
+          <div class="page-subtitle">各SNSのAPIキーを設定してください</div>
+        </div>
         <div class="settings-grid">
 
+          <!-- X -->
           <div class="s-card" id="card-x">
-            <div class="s-card-title">
-              <span class="s-dot" style="background:var(--x)"></span>X (Twitter)
+            <div class="s-card-header">
+              <div class="s-card-title">
+                <span class="s-platform-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </span>X (Twitter)
+              </div>
               <span class="conn-status conn-no" id="x-conn">未接続</span>
             </div>
-            <div class="connected-banner">✓ APIキーが設定済みで接続されています</div>
+            <div class="connected-banner">✓ APIキー設定済み・接続中</div>
             <div class="field"><span class="field-label">API Key</span><input type="password" id="x-api-key"
                 placeholder="••••••••"></div>
             <div class="field"><span class="field-label">API Secret</span><input type="password" id="x-api-secret"
@@ -981,7 +1577,7 @@
             <div class="field"><span class="field-label">Access Token</span><input type="password" id="x-access-token"
                 placeholder="••••••••"></div>
             <div class="field"><span class="field-label">Access Token Secret</span><input type="password"
-                id="x_access_token_secret" placeholder="••••••••"></div>
+                id="x-access-token-secret" placeholder="••••••••"></div>
             <div class="btn-row">
               <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
                 onclick="testConn('x')">接続テスト</button>
@@ -990,20 +1586,28 @@
             </div>
           </div>
 
+          <!-- Facebook -->
           <div class="s-card" id="card-facebook">
-            <div class="s-card-title">
-              <span class="s-dot" style="background:var(--fb)"></span>Facebook
+            <div class="s-card-header">
+              <div class="s-card-title">
+                <span class="s-platform-icon">
+                  <svg viewBox="0 0 24 24" fill="#1877F2">
+                    <path
+                      d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                  </svg>
+                </span>Facebook
+              </div>
               <span class="conn-status conn-no" id="fb-conn">未接続</span>
             </div>
-            <div class="connected-banner">✓ APIキーが設定済みで接続されています</div>
-            <div class="field"><span class="field-label">Page ID</span><input type="text" id="fb_api_key"
+            <div class="connected-banner">✓ APIキー設定済み・接続中</div>
+            <div class="field"><span class="field-label">Page ID</span><input type="text" id="fb-api-key"
                 placeholder="123456789"></div>
-            <div class="field"><span class="field-label">App ID</span><input type="password" id="fb_api_secret"
+            <div class="field"><span class="field-label">App ID</span><input type="password" id="fb-api-secret"
                 placeholder="••••••••"></div>
             <div class="field"><span class="field-label">App Secret</span><input type="password" id="fb-access-token"
                 placeholder="••••••••"></div>
             <div class="field"><span class="field-label">Page Access Token</span><input type="password"
-                id="fb_access_token_secret" placeholder="••••••••"></div>
+                id="fb-access-token-secret" placeholder="••••••••"></div>
             <div class="btn-row">
               <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
                 onclick="testConn('facebook')">接続テスト</button>
@@ -1012,20 +1616,28 @@
             </div>
           </div>
 
+          <!-- Threads -->
           <div class="s-card" id="card-threads">
-            <div class="s-card-title">
-              <span class="s-dot" style="background:#aaa"></span>Threads
+            <div class="s-card-header">
+              <div class="s-card-title">
+                <span class="s-platform-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor" style="color:#aaa">
+                    <path
+                      d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.471 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 1.327-.012 2.47-.216 3.392-.607 1.054-.44 1.818-1.098 2.274-1.956.464-.87.7-1.942.7-3.186 0-1.237-.24-2.287-.714-3.12-.475-.836-1.202-1.457-2.154-1.843a9.476 9.476 0 0 0-1.086-.317l.029-.147c.19-.96.57-2.086 1.5-3.048.755-.782 1.756-1.196 2.978-1.237.006-.001.012 0 .018 0 2.256.007 4.023 1.116 5.143 3.21.897 1.678 1.35 3.874 1.35 6.534 0 1.765-.29 3.346-.86 4.694-.578 1.362-1.437 2.476-2.554 3.31-1.127.843-2.496 1.43-4.07 1.746-.953.19-1.972.285-3.025.285z" />
+                  </svg>
+                </span>Threads
+              </div>
               <span class="conn-status conn-no" id="th-conn">未接続</span>
             </div>
-            <div class="connected-banner">✓ APIキーが設定済みで接続されています</div>
-            <div class="field"><span class="field-label">User ID</span><input type="text" id="th_api_key"
+            <div class="connected-banner">✓ APIキー設定済み・接続中</div>
+            <div class="field"><span class="field-label">User ID</span><input type="text" id="th-api-key"
                 placeholder="123456789"></div>
-            <div class="field"><span class="field-label">App ID</span><input type="password" id="th_api_secret"
+            <div class="field"><span class="field-label">App ID</span><input type="password" id="th-api-secret"
                 placeholder="••••••••"></div>
             <div class="field"><span class="field-label">App Secret</span><input type="password" id="th-access-token"
                 placeholder="••••••••"></div>
             <div class="field"><span class="field-label">Access Token</span><input type="password"
-                id="th_access_token_secret" placeholder="••••••••"></div>
+                id="th-access-token-secret" placeholder="••••••••"></div>
             <div class="btn-row">
               <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px"
                 onclick="testConn('threads')">接続テスト</button>
@@ -1034,49 +1646,49 @@
             </div>
           </div>
 
-          <div class="s-card">
-            <div class="s-card-title" style="margin-bottom:16px">使い方</div>
-            <div style="font-size:12px;color:var(--text2);line-height:1.8">
-              <div style="margin-bottom:8px"><strong style="color:var(--text)">X (Twitter)</strong><br>
-                developer.twitter.com でアプリ作成後、OAuth 1.0a の4つのキーを入力</div>
-              <div style="margin-bottom:8px"><strong style="color:var(--text)">Facebook</strong><br>
-                developers.facebook.com でアプリ作成、Graph API でページトークン取得</div>
-              <div><strong style="color:var(--text)">Threads</strong><br>
-                Meta Developer Portal で Threads API アクセスを有効化</div>
+          <!-- 使い方 -->
+          <div class="help-card">
+            <div class="help-card-title">🔑 APIキーの取得方法</div>
+            <div class="help-item">
+              <strong>X (Twitter)</strong>
+              <p>developer.twitter.com でアプリ作成後、OAuth 1.0a の4キーを入力してください。</p>
+            </div>
+            <div class="help-item">
+              <strong>Facebook</strong>
+              <p>developers.facebook.com でアプリ作成。Graph API でページアクセストークンを取得してください。</p>
+            </div>
+            <div class="help-item">
+              <strong>Threads</strong>
+              <p>Meta Developer Portal で Threads API アクセスを有効化し、アクセストークンを取得してください。</p>
             </div>
           </div>
-
         </div>
       </div>
 
-    </div>
-  </div>
+    </div><!-- /.main -->
+  </div><!-- /.layout -->
 
-  <!-- 再投稿モーダル -->
-  <div id="repost-modal"
-    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
-    <div
-      style="background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius-lg); padding:24px; width:min(440px, 90vw); display:flex; flex-direction:column; gap:16px;">
-      <div style="font-size:15px; font-weight:600; color:var(--text);">🔁 再投稿</div>
-      <div
-        style="font-size:12px; color:var(--text2); background:var(--bg3); border-radius:var(--radius); padding:10px 12px; max-height:80px; overflow-y:auto; line-height:1.6;"
-        id="repost-preview"></div>
-      <div>
+  <!-- ── 再投稿モーダル ── -->
+  <div class="modal-overlay" id="repost-modal" onclick="handleModalClick(event)">
+    <div class="modal-box">
+      <div class="modal-title">🔁 再投稿</div>
+      <div class="modal-preview" id="repost-preview"></div>
+      <div class="field">
         <span class="field-label">投稿タイミング</span>
-        <div class="timing-row" style="margin-top:6px;">
+        <div class="timing-row" style="margin-top:6px">
           <label class="radio-opt"><input type="radio" name="repost-timing" value="now" checked
               onchange="onRepostTimingChange()"> 今すぐ</label>
           <label class="radio-opt"><input type="radio" name="repost-timing" value="schedule"
-              onchange="onRepostTimingChange()"> 時刻指定</label>
+              onchange="onRepostTimingChange()"> 日時指定</label>
         </div>
-        <div id="repost-dt-fields" style="display:none; margin-top:10px;" class="datetime-grid">
+        <div id="repost-dt-fields" style="display:none;margin-top:10px" class="datetime-grid">
           <div><span class="field-label">日付</span><input type="date" id="repost-date"></div>
           <div><span class="field-label">時刻</span><input type="time" id="repost-time"></div>
         </div>
       </div>
-      <div id="repost-repeat-field" style="display:none;">
-        <span class="field-label">🔁 自動繰り返し</span>
-        <div class="timing-row" style="margin-top:6px;">
+      <div id="repost-repeat-field" style="display:none" class="field">
+        <span class="field-label">🔁 繰り返し</span>
+        <div class="timing-row" style="margin-top:6px">
           <label class="radio-opt"><input type="radio" name="repost-repeat" value="none" checked
               onchange="onRepostRepeatChange()"> なし</label>
           <label class="radio-opt"><input type="radio" name="repost-repeat" value="daily"
@@ -1084,9 +1696,8 @@
           <label class="radio-opt"><input type="radio" name="repost-repeat" value="weekly"
               onchange="onRepostRepeatChange()"> 毎週</label>
         </div>
-        <div id="repost-weekday-picker" style="display:none; margin-top:10px;">
-          <span class="field-label" style="margin-bottom:8px;display:block;">投稿する曜日</span>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div id="repost-weekday-picker" style="display:none;margin-top:10px">
+          <div class="weekday-row">
             <button type="button" class="wday-btn" data-rday="0" onclick="toggleRepostWeekday(this)">月</button>
             <button type="button" class="wday-btn" data-rday="1" onclick="toggleRepostWeekday(this)">火</button>
             <button type="button" class="wday-btn" data-rday="2" onclick="toggleRepostWeekday(this)">水</button>
@@ -1096,9 +1707,8 @@
             <button type="button" class="wday-btn" data-rday="6" onclick="toggleRepostWeekday(this)">日</button>
           </div>
         </div>
-        <div id="repost-repeat-note"
-          style="display:none; margin-top:8px; font-size:12px; color:var(--text3); background:rgba(124,109,250,0.08); border-radius:8px; padding:8px 12px; border:1px solid rgba(124,109,250,0.2);">
-          ⚠️ 指定した日時から繰り返します。次回以降は自動でスケジュールが作成されます。
+        <div id="repost-repeat-note" class="repeat-note" style="display:none">
+          ⚠️ 指定日時から繰り返します。
         </div>
       </div>
       <div class="btn-row">
@@ -1108,134 +1718,103 @@
     </div>
   </div>
 
-  <div id="toast"></div>
+  <!-- ── トースト ── -->
+  <div class="toast-container">
+    <div class="toast" id="toast"></div>
+  </div>
 
   <script>
-    // ── 認証 & 共通状態管理 ──
-    let currentAuthTab = 'login';
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 状態管理
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     let token = localStorage.getItem('token') || '';
     let selectedPlatforms = ['x'];
+    let uploadedImageUrls = [];   // サーバーにアップロード済みのURL
+    let allHistory = [];          // フィルタリング用にキャッシュ
+    let historyFilter = 'all';
+    let searchTimer = null;
+    let currentAuthTab = 'login';
+    let repostTargetId = null;
 
     document.addEventListener('DOMContentLoaded', () => {
+      setDefaultDateTime();
       checkAuth();
     });
 
-    // 認証状態のチェックによる画面表示制御
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 認証
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     function checkAuth() {
       const wrap = document.getElementById('login-wrap');
       if (token) {
         wrap.style.display = 'none';
-        // ログイン完了後にAPIからデータを読み込む
         loadHistory();
         loadStats();
-        loadSchedule();
+        loadScheduled();
       } else {
         wrap.style.display = 'flex';
       }
     }
 
-    // 認証用タブ切り替え（ログイン / 新規登録）
     function switchLoginTab(mode) {
       currentAuthTab = mode;
       document.getElementById('login-error').classList.remove('show');
-
-      const tabLogin = document.getElementById('tab-login');
-      const tabRegister = document.getElementById('tab-register');
-      const formLogin = document.getElementById('lf-login');
-      const formRegister = document.getElementById('lf-register');
-
-      if (mode === 'login') {
-        tabLogin.classList.add('active');
-        tabRegister.classList.remove('active');
-        formLogin.style.display = 'block';
-        formRegister.style.display = 'none';
-      } else {
-        tabLogin.classList.remove('active');
-        tabRegister.classList.add('active');
-        formLogin.style.display = 'none';
-        formRegister.style.display = 'block';
-      }
+      document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+      document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+      document.getElementById('lf-login').style.display = mode === 'login' ? 'block' : 'none';
+      document.getElementById('lf-register').style.display = mode === 'register' ? 'block' : 'none';
     }
 
-    // ログイン・アカウント登録の統合実行関数
     async function doAuth() {
       const errBox = document.getElementById('login-error');
       errBox.classList.remove('show');
 
       if (currentAuthTab === 'login') {
-        // ── ログイン認証処理 ──
-        const userVal = document.getElementById('login-username').value;
+        const userVal = document.getElementById('login-username').value.trim();
         const passVal = document.getElementById('login-password').value;
+        if (!userVal || !passVal) { showAuthError('ユーザー名とパスワードを入力してください'); return; }
 
-        if (!userVal || !passVal) {
-          showAuthError('ユーザー名とパスワードを入力してください');
-          return;
-        }
-
-        // OAuth2PasswordRequestForm 規格に合わせたエンコードオブジェクトの作成
         const params = new URLSearchParams();
         params.append('username', userVal);
         params.append('password', passVal);
-
         try {
           const resp = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: params
+            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params
           });
           const data = await resp.json();
-
           if (!resp.ok) throw new Error(data.detail || 'ログインに失敗しました');
-
           token = data.access_token;
           localStorage.setItem('token', token);
-
-          // ナビゲーション上の表示名を更新
           document.getElementById('user-name-disp').textContent = userVal;
           document.getElementById('user-avatar').textContent = userVal.charAt(0).toUpperCase();
-
-          toast('ログインしました');
+          toast('ログインしました', 'success');
           checkAuth();
-        } catch (err) {
-          showAuthError(err.message);
-        }
+        } catch (err) { showAuthError(err.message); }
 
       } else {
-        // ── 新規アカウント登録処理 ──
-        const username = document.getElementById('reg-username').value;
-        const email = document.getElementById('reg-email').value;
+        const username = document.getElementById('reg-username').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
         const password = document.getElementById('reg-password').value;
-
-        if (!username || !email || !password) {
-          showAuthError('すべての項目を入力してください');
-          return;
-        }
-
+        if (!username || !email || !password) { showAuthError('すべての項目を入力してください'); return; }
         try {
           const resp = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email, password })
           });
           const data = await resp.json();
-
           if (!resp.ok) throw new Error(data.detail || '登録に失敗しました');
-
-          toast('アカウントを作成しました！ログインしてください。');
+          toast('アカウントを作成しました！ログインしてください', 'success');
           switchLoginTab('login');
-        } catch (err) {
-          showAuthError(err.message);
-        }
+        } catch (err) { showAuthError(err.message); }
       }
     }
 
     function showAuthError(msg) {
-      const errBox = document.getElementById('login-error');
-      errBox.textContent = msg;
-      errBox.classList.add('show');
+      const box = document.getElementById('login-error');
+      box.textContent = msg;
+      box.classList.add('show');
     }
 
-    // ログアウト処理
     function doLogout() {
       token = '';
       localStorage.removeItem('token');
@@ -1245,44 +1824,45 @@
       checkAuth();
     }
 
-    // ── トークン自動付与型 共通 fetch 関数 (apiFetch) ──
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 共通 API fetch
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     async function apiFetch(url, options = {}) {
       options.headers = options.headers || {};
-      if (token) {
-        options.headers['Authorization'] = `Bearer ${token}`;
-      }
+      if (token) options.headers['Authorization'] = `Bearer ${token}`;
       const resp = await fetch(url, options);
-      if (resp.status === 401) {
-        doLogout();
-      }
+      if (resp.status === 401) doLogout();
       return resp;
     }
 
-    // ── 画面ナビゲーション制御 ──
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ナビゲーション
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     function showPage(pageId, btn) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
       document.getElementById(`page-${pageId}`).classList.add('active');
       if (btn) btn.classList.add('active');
+
       if (pageId === 'schedule') loadScheduled();
       if (pageId === 'history') loadHistory();
       if (pageId === 'stats') loadStats();
       if (pageId === 'settings') {
-        console.log("APIキーページへ遷移: 読み込みを開始します");
         loadSettings('x');
         loadSettings('facebook');
         loadSettings('threads');
       }
     }
 
-    // プラットフォーム選択の切り替え
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 投稿作成フォーム
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     function togglePlatform(btn) {
       const p = btn.getAttribute('data-p');
       if (btn.classList.contains('active')) {
         if (selectedPlatforms.length > 1) {
           btn.classList.remove('active');
-          selectedPlatforms = selectedPlatforms.filter(item => item !== p);
+          selectedPlatforms = selectedPlatforms.filter(i => i !== p);
         }
       } else {
         btn.classList.add('active');
@@ -1293,16 +1873,28 @@
 
     function updateCounter() {
       const txt = document.getElementById('post-text').value;
-      document.getElementById('char-count').textContent = `${txt.length} 文字`;
+      const len = txt.length;
+      const hasX = selectedPlatforms.includes('x');
+      const limit = hasX ? 280 : 500;
+      const pct = Math.min(len / limit * 100, 100);
+
+      const countEl = document.getElementById('char-count');
+      const barEl = document.getElementById('char-bar');
+      countEl.textContent = `${len} / ${limit}`;
+
+      const isWarn = len >= limit * 0.85;
+      const isOver = len > limit;
+
+      countEl.className = 'char-count' + (isOver ? ' over' : isWarn ? ' warn' : '');
+      barEl.style.width = pct + '%';
+      barEl.className = 'char-bar' + (isOver ? ' over' : isWarn ? ' warn' : '');
     }
 
     function onTimingChange() {
-      const timing = document.querySelector('input[name="timing"]:checked').value;
-      const isSchedule = timing === 'schedule';
+      const isSchedule = document.querySelector('input[name="timing"]:checked').value === 'schedule';
       document.getElementById('dt-fields').style.display = isSchedule ? 'grid' : 'none';
       document.getElementById('repeat-field').style.display = isSchedule ? 'block' : 'none';
       if (!isSchedule) {
-        // 今すぐ投稿に切り替えたら繰り返し設定をリセット
         document.querySelector('input[name="repeat"][value="none"]').checked = true;
         onRepeatChange();
       }
@@ -1311,161 +1903,294 @@
     function onRepeatChange() {
       const repeat = document.querySelector('input[name="repeat"]:checked').value;
       document.getElementById('weekday-picker').style.display = repeat === 'weekly' ? 'block' : 'none';
-      document.getElementById('repeat-note').style.display = (repeat !== 'none') ? 'block' : 'none';
+      document.getElementById('repeat-note').style.display = repeat !== 'none' ? 'block' : 'none';
     }
 
-    function toggleWeekday(btn) {
-      btn.classList.toggle('active');
+    function toggleWeekday(btn) { btn.classList.toggle('active'); }
+
+    function setDefaultDateTime() {
+      const now = new Date(Date.now() + 60 * 60 * 1000); // 1時間後
+      const d = now.toISOString().slice(0, 10);
+      const t = now.toTimeString().slice(0, 5);
+      const schedDate = document.getElementById('sched-date');
+      const schedTime = document.getElementById('sched-time');
+      if (schedDate && !schedDate.value) schedDate.value = d;
+      if (schedTime && !schedTime.value) schedTime.value = t;
     }
 
-    // ── 各種データ読み込み用 API 通信処理 ──
-    async function loadHistory() {
-      if (!token) return;
-      try {
-        const resp = await apiFetch('/api/history/');
-        if (!resp.ok) return;
-        const data = await resp.json();
-        const list = document.getElementById('history-list');
-        list.innerHTML = data.length ? '' : '<div class="empty">投稿履歴はありません</div>';
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 画像アップロード
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    async function handleImages(input) {
+      const files = Array.from(input.files).slice(0, 4 - uploadedImageUrls.length);
+      if (files.length === 0) return;
 
-        data.forEach(item => {
-          const platforms = (item.platforms || []).map(pl =>
-            `<span class="pi-badge pb-${pl}">${pl === 'x' ? 'X' : pl === 'facebook' ? 'Facebook' : 'Threads'}</span>`
-          ).join('');
-          const statusClass = item.status === 'posted' ? 's-posted' : item.status === 'failed' ? 's-failed' : 's-pending';
-          const statusLabel = item.status === 'posted' ? '投稿済み' : item.status === 'failed' ? '失敗' : item.status === 'draft' ? '下書き' : '待機中';
-          const time = item.posted_at || item.created_at
-            ? new Date(item.posted_at || item.created_at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-            : '';
-          list.innerHTML += `
-            <div class="post-item">
-              <div class="pi-header">
-                <div class="pi-platforms">${platforms}</div>
-                <span class="pi-time">${time}</span>
-              </div>
-              <div class="pi-text">${item.text.length > 120 ? item.text.slice(0, 120) + '…' : item.text}</div>
-              <div class="pi-footer" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                <span class="pi-badge ${statusClass}">${statusLabel}</span>
-                ${item.error_message ? `<span style="font-size:11px;color:var(--danger);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.error_message}">⚠️ ${item.error_message}</span>` : ''}
-                <button class="btn btn-ghost" style="margin-left:auto;font-size:12px;padding:5px 12px;" onclick="openRepostModal(${item.id}, \`${item.text.replace(/`/g, '\\`')}\`)">🔁 再投稿</button>
-              </div>
-            </div>`;
-        });
-      } catch (e) { console.error(e); }
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const resp = await apiFetch('/api/upload', { method: 'POST', body: formData });
+          if (!resp.ok) { toast('画像のアップロードに失敗しました', 'error'); continue; }
+          const data = await resp.json();
+          uploadedImageUrls.push(data.url);
+          addPreview(data.url);
+        } catch (e) {
+          toast('アップロードエラー: ' + e.message, 'error');
+        }
+      }
+      // inputをリセット（同じファイルを再選択可能にする）
+      input.value = '';
+      updateUploadZone();
     }
 
-    async function loadSchedule() {
-      if (!token) return;
-      try {
-        const resp = await apiFetch('/api/posts/');
-        if (!resp.ok) return;
-        const data = await resp.json();
-        document.getElementById('schedule-list').innerHTML = '<div class="empty">スケジュール済み投稿はありません</div>';
-      } catch (e) { console.error(e); }
+    function addPreview(url) {
+      const row = document.getElementById('preview-row');
+      const item = document.createElement('div');
+      item.className = 'preview-item';
+      item.innerHTML = `<img src="${url}"><button class="preview-remove" onclick="removeImage('${url}',this)" title="削除">×</button>`;
+      row.appendChild(item);
     }
 
-    async function loadStats() {
-      if (!token) return;
-      try {
-        const resp = await apiFetch('/api/history/stats');
-        if (!resp.ok) return;
-        const data = await resp.json();
-        const grid = document.getElementById('stats-grid');
-        grid.innerHTML = `
-          <div class="stat-card"><div class="stat-num">${data.total_posted || 0}</div><div class="stat-label">総投稿数</div></div>
-          <div class="stat-card"><div class="stat-num">${data.drafts || 0}</div><div class="stat-label">下書き数</div></div>
-        `;
-      } catch (e) { console.error(e); }
+    function removeImage(url, btn) {
+      uploadedImageUrls = uploadedImageUrls.filter(u => u !== url);
+      btn.closest('.preview-item').remove();
+      updateUploadZone();
     }
 
-    // 投稿の送信
+    function updateUploadZone() {
+      const zone = document.getElementById('upload-zone');
+      zone.style.display = uploadedImageUrls.length >= 4 ? 'none' : 'block';
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 投稿送信
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     async function submitPost() {
-      const text = document.getElementById('post-text').value;
-      if (!text) { alert('テキストを入力してください'); return; }
+      const text = document.getElementById('post-text').value.trim();
+      if (!text) { toast('テキストを入力してください', 'error'); return; }
 
       const timing = document.querySelector('input[name="timing"]:checked').value;
-      let scheduled_at = null;
-      let repeat = null;
-      let weekdays = null;
+      let scheduled_at = null, repeat = null, weekdays = null;
 
       if (timing === 'schedule') {
         const d = document.getElementById('sched-date').value;
         const t = document.getElementById('sched-time').value;
-        if (!d || !t) { alert('日時を正確に指定してください'); return; }
+        if (!d || !t) { toast('日時を指定してください', 'error'); return; }
         scheduled_at = new Date(`${d}T${t}`).toISOString();
 
-        // 繰り返し設定
         const repeatVal = document.querySelector('input[name="repeat"]:checked').value;
         if (repeatVal !== 'none') {
           repeat = repeatVal;
           if (repeatVal === 'weekly') {
             weekdays = Array.from(document.querySelectorAll('.wday-btn.active'))
-              .map(btn => parseInt(btn.getAttribute('data-day')));
-            if (weekdays.length === 0) {
-              alert('毎週繰り返しの場合は曜日を1つ以上選択してください');
-              return;
-            }
+              .map(b => parseInt(b.getAttribute('data-day')));
+            if (weekdays.length === 0) { toast('曜日を1つ以上選択してください', 'error'); return; }
           }
         }
       }
 
       try {
-        const payload = { text, platforms: selectedPlatforms, scheduled_at, repeat, weekdays };
-        console.log("送るデータ:", JSON.stringify(payload));
+        const payload = { text, platforms: selectedPlatforms, image_urls: uploadedImageUrls, scheduled_at, repeat, weekdays };
         const resp = await apiFetch('/api/posts/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         if (resp.ok) {
-          const repeatLabel = repeat === 'daily' ? '（毎日繰り返し）' : repeat === 'weekly' ? '（毎週繰り返し）' : '';
-          toast(`投稿を送信・予約しました ${repeatLabel}`);
-          document.getElementById('post-text').value = '';
-          // フォームをリセット
-          document.querySelector('input[name="timing"][value="now"]').checked = true;
-          onTimingChange();
-          updateCounter();
+          const label = repeat === 'daily' ? '（毎日）' : repeat === 'weekly' ? '（毎週）' : '';
+          toast(scheduled_at ? `📅 スケジュール登録しました ${label}` : `✅ 投稿しました ${label}`, 'success');
+          resetForm();
           loadHistory();
+          loadStats();
         } else {
           const err = await resp.json();
-          alert('投稿に失敗しました: ' + (err.detail || ''));
+          toast('投稿に失敗しました: ' + (err.detail || ''), 'error');
         }
-      } catch (e) { alert(e); }
+      } catch (e) { toast('エラー: ' + e.message, 'error'); }
     }
 
     async function saveDraft() {
-      const text = document.getElementById('post-text').value;
+      const text = document.getElementById('post-text').value.trim();
+      if (!text) { toast('テキストを入力してください', 'error'); return; }
       try {
         const resp = await apiFetch('/api/posts/draft', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, platforms: selectedPlatforms })
+          body: JSON.stringify({ text, platforms: selectedPlatforms, image_urls: uploadedImageUrls })
         });
-        if (resp.ok) { toast('下書きを保存しました'); loadStats(); }
-      } catch (e) { alert(e); }
+        if (resp.ok) {
+          toast('下書きを保存しました');
+          resetForm();
+          loadHistory();
+          loadStats();
+        }
+      } catch (e) { toast('エラー: ' + e.message, 'error'); }
     }
 
-    function handleImages(input) {
-      toast(`${input.files.length} 個のファイルが選択されました`);
+    function resetForm() {
+      document.getElementById('post-text').value = '';
+      uploadedImageUrls = [];
+      document.getElementById('preview-row').innerHTML = '';
+      updateUploadZone();
+      document.querySelector('input[name="timing"][value="now"]').checked = true;
+      onTimingChange();
+      updateCounter();
+      setDefaultDateTime();
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 投稿履歴
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    async function loadHistory() {
+      if (!token) return;
+      try {
+        const resp = await apiFetch('/api/history/');
+        if (!resp.ok) return;
+        allHistory = await resp.json();
+        renderHistory();
+      } catch (e) { console.error(e); }
+    }
+
+    function renderHistory() {
+      const keyword = document.getElementById('search-input')?.value.toLowerCase() || '';
+      const list = document.getElementById('history-list');
+
+      const filtered = allHistory.filter(item => {
+        const matchStatus = historyFilter === 'all' || item.status === historyFilter;
+        const matchText = !keyword || item.text.toLowerCase().includes(keyword);
+        return matchStatus && matchText;
+      });
+
+      if (!filtered.length) {
+        list.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">投稿が見つかりません</div><div class="empty-sub">フィルタを変更するか、新しく投稿してみてください</div></div>`;
+        return;
+      }
+
+      list.innerHTML = filtered.map(item => {
+        const platforms = (item.platforms || []).map(pl =>
+          `<span class="pi-badge pb-${pl}">${platformLabel(pl)}</span>`
+        ).join('');
+        const statusCls = { posted: 's-posted', failed: 's-failed', draft: 's-draft', pending: 's-pending' }[item.status] || 's-pending';
+        const statusTxt = { posted: '投稿済み', failed: '失敗', draft: '下書き', pending: '待機中' }[item.status] || item.status;
+        const time = fmtDate(item.posted_at || item.created_at);
+        const excerpt = item.text.length > 120 ? item.text.slice(0, 120) + '…' : item.text;
+        const errHtml = item.error_message
+          ? `<span style="font-size:11px;color:var(--danger);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(item.error_message)}">⚠ ${escHtml(item.error_message)}</span>` : '';
+        return `<div class="post-item">
+      <div class="pi-header">
+        <div class="pi-platforms">${platforms}</div>
+        <span class="pi-time">${time}</span>
+      </div>
+      <div class="pi-text">${escHtml(excerpt)}</div>
+      <div class="pi-footer">
+        <span class="pi-badge ${statusCls}">${statusTxt}</span>
+        ${errHtml}
+        <button class="btn btn-ghost" style="margin-left:auto;font-size:12px;padding:5px 12px" onclick="openRepostModal(${item.id},${JSON.stringify(item.text)})">🔁 再投稿</button>
+      </div>
+    </div>`;
+      }).join('');
+    }
+
+    function filterHistory(btn, filter) {
+      historyFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      renderHistory();
     }
 
     function debounceSearch() {
-      // 検索拡張用
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(renderHistory, 200);
     }
 
-    function toast(msg) {
-      const el = document.getElementById('toast');
-      el.textContent = msg;
-      el.classList.add('show');
-      setTimeout(() => el.classList.remove('show'), 2500);
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // スケジュール
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    async function loadScheduled() {
+      if (!token) return;
+      const el = document.getElementById('schedule-list');
+      try {
+        const r = await apiFetch('/api/posts/scheduled');
+        if (!r.ok) { el.innerHTML = '<div class="empty"><div class="empty-icon">❗</div><div class="empty-title">読み込みに失敗しました</div></div>'; return; }
+        const posts = await r.json();
+        if (!posts.length) {
+          el.innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">スケジュール済み投稿はありません</div><div class="empty-sub">投稿作成から日時指定で予約できます</div></div>';
+          return;
+        }
+        const wdayNames = ['月', '火', '水', '木', '金', '土', '日'];
+        el.innerHTML = posts.map(p => {
+          const platforms = (p.platforms || []).map(pl => `<span class="pi-badge pb-${pl}">${platformLabel(pl)}</span>`).join('');
+          const time = p.scheduled_at ? '📅 ' + fmtDate(p.scheduled_at) : '';
+          let repeatBadge = '';
+          if (p.repeat === 'daily') {
+            repeatBadge = `<span style="font-size:11px;color:var(--accent);background:rgba(108,99,255,0.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(108,99,255,0.22)">🔁 毎日</span>`;
+          } else if (p.repeat === 'weekly' && p.weekdays?.length) {
+            repeatBadge = `<span style="font-size:11px;color:var(--accent);background:rgba(108,99,255,0.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(108,99,255,0.22)">🔁 毎週 ${p.weekdays.map(d => wdayNames[d]).join('・')}</span>`;
+          }
+          return `<div class="post-item">
+        <div class="pi-header">
+          <div class="pi-platforms">${platforms}</div>
+          <span class="pi-time">${time}</span>
+        </div>
+        <div class="pi-text">${escHtml(p.text.length > 100 ? p.text.slice(0, 100) + '…' : p.text)}</div>
+        <div class="pi-footer">
+          <span class="pi-badge s-pending">待機中</span>
+          ${repeatBadge}
+          <button class="btn-danger-sm" style="margin-left:auto" onclick="deleteScheduleItem(${p.id})">削除</button>
+        </div>
+      </div>`;
+        }).join('');
+      } catch (e) { el.innerHTML = '<div class="empty"><div class="empty-icon">❗</div><div class="empty-title">サーバーに接続できません</div></div>'; }
     }
 
-    // カードの接続状態をUIに反映するヘルパー
+    async function deleteScheduleItem(id) {
+      if (!confirm('この予約投稿を削除しますか？')) return;
+      try {
+        const r = await apiFetch(`/api/posts/${id}`, { method: 'DELETE' });
+        if (r.ok) { toast('削除しました'); loadScheduled(); }
+        else { const e = await r.json(); toast('削除失敗: ' + (e.detail || ''), 'error'); }
+      } catch (e) { toast('エラー: ' + e.message, 'error'); }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 統計
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    async function loadStats() {
+      if (!token) return;
+      try {
+        const resp = await apiFetch('/api/history/stats');
+        if (!resp.ok) return;
+        const d = await resp.json();
+        document.getElementById('stats-grid').innerHTML = `
+      <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-num">${d.total_posted || 0}</div><div class="stat-label">総投稿数</div></div>
+      <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-num">${d.scheduled || 0}</div><div class="stat-label">予約中</div></div>
+      <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-num">${d.drafts || 0}</div><div class="stat-label">下書き</div></div>
+      <div class="stat-card"><div class="stat-icon">📆</div><div class="stat-num">${d.weekly_posts || 0}</div><div class="stat-label">今週の投稿</div></div>
+    `;
+        const bp = d.by_platform || {};
+        document.getElementById('platform-stats').innerHTML = `
+      <div class="pstat-card">
+        <div class="pstat-icon x-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></div>
+        <div class="pstat-info"><div class="pstat-name">X (Twitter)</div><div class="pstat-count">${bp.x || 0}</div></div>
+      </div>
+      <div class="pstat-card">
+        <div class="pstat-icon fb-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></div>
+        <div class="pstat-info"><div class="pstat-name">Facebook</div><div class="pstat-count">${bp.facebook || 0}</div></div>
+      </div>
+      <div class="pstat-card">
+        <div class="pstat-icon th-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="#aaa"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.471 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 1.327-.012 2.47-.216 3.392-.607 1.054-.44 1.818-1.098 2.274-1.956.464-.87.7-1.942.7-3.186 0-1.237-.24-2.287-.714-3.12-.475-.836-1.202-1.457-2.154-1.843a9.476 9.476 0 0 0-1.086-.317l.029-.147c.19-.96.57-2.086 1.5-3.048.755-.782 1.756-1.196 2.978-1.237.006-.001.012 0 .018 0 2.256.007 4.023 1.116 5.143 3.21.897 1.678 1.35 3.874 1.35 6.534 0 1.765-.29 3.346-.86 4.694-.578 1.362-1.437 2.476-2.554 3.31-1.127.843-2.496 1.43-4.07 1.746-.953.19-1.972.285-3.025.285z"/></svg></div>
+        <div class="pstat-info"><div class="pstat-name">Threads</div><div class="pstat-count">${bp.threads || 0}</div></div>
+      </div>
+    `;
+      } catch (e) { console.error(e); }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 設定
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     function setCardConnected(platform, isConnected) {
-      const idMap = { x: 'x', facebook: 'facebook', threads: 'threads' };
-      const connIdMap = { x: 'x-conn', facebook: 'fb-conn', threads: 'th-conn' };
-      const card = document.getElementById(`card-${idMap[platform]}`);
-      const badge = document.getElementById(connIdMap[platform]);
+      const card = document.getElementById(`card-${platform}`);
+      const badge = document.getElementById({ x: 'x-conn', facebook: 'fb-conn', threads: 'th-conn' }[platform]);
       if (!card || !badge) return;
       if (isConnected) {
         card.classList.add('connected');
@@ -1478,31 +2203,30 @@
       }
     }
 
-    async function saveSettings(platform) {
-      let config = {};
-      if (platform === 'x') {
-        config = {
-          api_key: document.getElementById('x-api-key').value,
-          api_secret: document.getElementById('x-api-secret').value,
-          access_token: document.getElementById('x-access-token').value,
-          access_token_secret: document.getElementById('x_access_token_secret').value
-        };
-      } else if (platform === 'facebook') {
-        config = {
-          api_key: document.getElementById('fb_api_key').value,
-          api_secret: document.getElementById('fb_api_secret').value,
-          access_token: document.getElementById('fb-access-token').value,
-          access_token_secret: document.getElementById('fb_access_token_secret').value
-        };
-      } else if (platform === 'threads') {
-        config = {
-          api_key: document.getElementById('th_api_key').value,
-          api_secret: document.getElementById('th_api_secret').value,
-          access_token: document.getElementById('th-access-token').value,
-          access_token_secret: document.getElementById('th_access_token_secret').value
-        };
-      }
+    function getSettingsConfig(platform) {
+      if (platform === 'x') return {
+        api_key: document.getElementById('x-api-key').value,
+        api_secret: document.getElementById('x-api-secret').value,
+        access_token: document.getElementById('x-access-token').value,
+        access_token_secret: document.getElementById('x-access-token-secret').value,
+      };
+      if (platform === 'facebook') return {
+        api_key: document.getElementById('fb-api-key').value,
+        api_secret: document.getElementById('fb-api-secret').value,
+        access_token: document.getElementById('fb-access-token').value,
+        access_token_secret: document.getElementById('fb-access-token-secret').value,
+      };
+      if (platform === 'threads') return {
+        api_key: document.getElementById('th-api-key').value,
+        api_secret: document.getElementById('th-api-secret').value,
+        access_token: document.getElementById('th-access-token').value,
+        access_token_secret: document.getElementById('th-access-token-secret').value,
+      };
+      return {};
+    }
 
+    async function saveSettings(platform) {
+      const config = getSettingsConfig(platform);
       try {
         const resp = await apiFetch(`/api/settings/${platform}`, {
           method: 'POST',
@@ -1512,122 +2236,76 @@
         if (resp.ok) {
           const hasKeys = Object.values(config).some(v => v && v.trim());
           setCardConnected(platform, hasKeys);
-          toast('✅ 保存しました');
+          toast('✅ 保存しました', 'success');
         } else {
-          const error = await resp.json();
-          toast('❌ 保存失敗: ' + (error.detail || '不明なエラー'));
+          const e = await resp.json();
+          toast('保存失敗: ' + (e.detail || ''), 'error');
         }
-      } catch (e) {
-        toast('サーバーに接続できません: ' + e.message);
-      }
+      } catch (e) { toast('サーバーに接続できません', 'error'); }
     }
 
     async function testConn(platform) {
       toast('🔄 接続テスト中...');
       try {
         const r = await apiFetch(`/api/settings/test/${platform}`, { method: 'POST' });
-        const data = await r.json();
-        if (r.ok && data.success) {
+        const d = await r.json();
+        if (r.ok && d.success) {
           setCardConnected(platform, true);
-          toast('✅ 接続OK！');
+          toast('✅ 接続OK！', 'success');
         } else {
           setCardConnected(platform, false);
-          toast('❌ ' + (data.message || data.detail || '接続失敗'));
+          toast('❌ ' + (d.message || d.detail || '接続失敗'), 'error');
         }
-      } catch (e) {
-        toast('サーバーに接続できません');
-      }
+      } catch (e) { toast('サーバーに接続できません', 'error'); }
     }
 
     async function loadSettings(platform) {
       try {
         const resp = await apiFetch(`/api/settings/${platform}`);
-        const data = await resp.json();
-        if (!resp.ok || !data.config) return;
-
-        const cfg = data.config;
-        setCardConnected(platform, !!data.is_connected);
-
+        const d = await resp.json();
+        if (!resp.ok || !d.config) return;
+        const cfg = d.config;
+        setCardConnected(platform, !!d.is_connected);
         if (platform === 'x') {
           document.getElementById('x-api-key').value = cfg.api_key || '';
           document.getElementById('x-api-secret').value = cfg.api_secret || '';
           document.getElementById('x-access-token').value = cfg.access_token || '';
-          document.getElementById('x_access_token_secret').value = cfg.access_token_secret || '';
+          document.getElementById('x-access-token-secret').value = cfg.access_token_secret || '';
         } else if (platform === 'facebook') {
-          document.getElementById('fb_api_key').value = cfg.api_key || '';
-          document.getElementById('fb_api_secret').value = cfg.api_secret || '';
+          document.getElementById('fb-api-key').value = cfg.api_key || '';
+          document.getElementById('fb-api-secret').value = cfg.api_secret || '';
           document.getElementById('fb-access-token').value = cfg.access_token || '';
-          document.getElementById('fb_access_token_secret').value = cfg.access_token_secret || '';
+          document.getElementById('fb-access-token-secret').value = cfg.access_token_secret || '';
         } else if (platform === 'threads') {
-          document.getElementById('th_api_key').value = cfg.api_key || '';
-          document.getElementById('th_api_secret').value = cfg.api_secret || '';
+          document.getElementById('th-api-key').value = cfg.api_key || '';
+          document.getElementById('th-api-secret').value = cfg.api_secret || '';
           document.getElementById('th-access-token').value = cfg.access_token || '';
-          document.getElementById('th_access_token_secret').value = cfg.access_token_secret || '';
+          document.getElementById('th-access-token-secret').value = cfg.access_token_secret || '';
         }
-      } catch (e) {
-        console.error('読み込みエラー:', e);
-      }
+      } catch (e) { console.error('設定読み込みエラー:', e); }
     }
 
-    // ── スケジュール一覧 ──
-    async function loadScheduled() {
-      if (!token) return;
-      const el = document.getElementById('schedule-list');
-      try {
-        const r = await apiFetch('/api/posts/scheduled');
-        if (!r.ok) { el.innerHTML = '<div class="empty">読み込みに失敗しました</div>'; return; }
-        const posts = await r.json();
-        if (!posts.length) { el.innerHTML = '<div class="empty">スケジュール済み投稿はありません</div>'; return; }
-        el.innerHTML = posts.map(p => {
-          const platforms = (p.platforms || []).map(pl =>
-            `<span class="pi-badge pb-${pl}">${pl === 'x' ? 'X' : pl === 'facebook' ? 'Facebook' : 'Threads'}</span>`
-          ).join('');
-          const time = p.scheduled_at
-            ? '📅 ' + new Date(p.scheduled_at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-            : '';
-          const wdayNames = ['月', '火', '水', '木', '金', '土', '日'];
-          let repeatBadge = '';
-          if (p.repeat === 'daily') {
-            repeatBadge = `<span style="font-size:11px;color:var(--accent);background:rgba(124,109,250,0.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(124,109,250,0.25);">🔁 毎日</span>`;
-          } else if (p.repeat === 'weekly' && p.weekdays && p.weekdays.length) {
-            const days = p.weekdays.map(d => wdayNames[d]).join('・');
-            repeatBadge = `<span style="font-size:11px;color:var(--accent);background:rgba(124,109,250,0.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(124,109,250,0.25);">🔁 毎週（${days}）</span>`;
-          }
-          return `
-            <div class="post-item">
-              <div class="pi-header">
-                <div class="pi-platforms">${platforms}</div>
-                <span class="pi-time">${time}</span>
-              </div>
-              <div class="pi-text">${p.text.length > 100 ? p.text.slice(0, 100) + '…' : p.text}</div>
-              <div class="pi-footer" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                <span class="pi-badge s-pending">待機中</span>
-                ${repeatBadge}
-                <button class="btn btn-danger" style="margin-left:auto;" onclick="deleteScheduleItem(${p.id})">削除</button>
-              </div>
-            </div>`;
-        }).join('');
-      } catch (e) { el.innerHTML = '<div class="empty">サーバーに接続できません</div>'; console.error(e); }
-    }
-    // ── 再投稿モーダル ──
-    let repostTargetId = null;
-
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 再投稿モーダル
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     function openRepostModal(postId, text) {
       repostTargetId = postId;
       document.getElementById('repost-preview').textContent = text;
       document.querySelector('input[name="repost-timing"][value="now"]').checked = true;
       document.querySelector('input[name="repost-repeat"][value="none"]').checked = true;
-      // 曜日ボタンをリセット
       document.querySelectorAll('#repost-weekday-picker .wday-btn').forEach(b => b.classList.remove('active'));
       onRepostTimingChange();
       onRepostRepeatChange();
-      const modal = document.getElementById('repost-modal');
-      modal.style.display = 'flex';
+      document.getElementById('repost-modal').classList.add('open');
     }
 
     function closeRepostModal() {
-      document.getElementById('repost-modal').style.display = 'none';
+      document.getElementById('repost-modal').classList.remove('open');
       repostTargetId = null;
+    }
+
+    function handleModalClick(e) {
+      if (e.target === document.getElementById('repost-modal')) closeRepostModal();
     }
 
     function onRepostTimingChange() {
@@ -1646,33 +2324,25 @@
       document.getElementById('repost-repeat-note').style.display = repeat !== 'none' ? 'block' : 'none';
     }
 
-    function toggleRepostWeekday(btn) {
-      btn.classList.toggle('active');
-    }
+    function toggleRepostWeekday(btn) { btn.classList.toggle('active'); }
 
     async function confirmRepost() {
       if (!repostTargetId) return;
       const timing = document.querySelector('input[name="repost-timing"]:checked').value;
-      let scheduled_at = null;
-      let repeat = null;
-      let weekdays = null;
+      let scheduled_at = null, repeat = null, weekdays = null;
 
       if (timing === 'schedule') {
         const d = document.getElementById('repost-date').value;
         const t = document.getElementById('repost-time').value;
-        if (!d || !t) { alert('日時を正確に指定してください'); return; }
+        if (!d || !t) { toast('日時を指定してください', 'error'); return; }
         scheduled_at = new Date(`${d}T${t}`).toISOString();
-
         const repeatVal = document.querySelector('input[name="repost-repeat"]:checked').value;
         if (repeatVal !== 'none') {
           repeat = repeatVal;
           if (repeatVal === 'weekly') {
             weekdays = Array.from(document.querySelectorAll('#repost-weekday-picker .wday-btn.active'))
-              .map(btn => parseInt(btn.getAttribute('data-rday')));
-            if (weekdays.length === 0) {
-              alert('毎週繰り返しの場合は曜日を1つ以上選択してください');
-              return;
-            }
+              .map(b => parseInt(b.getAttribute('data-rday')));
+            if (!weekdays.length) { toast('曜日を選択してください', 'error'); return; }
           }
         }
       }
@@ -1684,22 +2354,42 @@
           body: JSON.stringify({ scheduled_at, repeat, weekdays })
         });
         if (resp.ok) {
-          const repeatLabel = repeat === 'daily' ? '（毎日繰り返し）' : repeat === 'weekly' ? '（毎週繰り返し）' : '';
-          toast(scheduled_at ? `📅 再投稿を予約しました ${repeatLabel}` : '✅ 再投稿しました');
+          const label = repeat === 'daily' ? '（毎日）' : repeat === 'weekly' ? '（毎週）' : '';
+          toast(scheduled_at ? `📅 再投稿を予約しました ${label}` : '✅ 再投稿しました', 'success');
           closeRepostModal();
           loadHistory();
           loadStats();
         } else {
-          const err = await resp.json();
-          alert('再投稿に失敗しました: ' + (err.detail || ''));
+          const e = await resp.json();
+          toast('再投稿失敗: ' + (e.detail || ''), 'error');
         }
-      } catch (e) { alert(e); }
+      } catch (e) { toast('エラー: ' + e.message, 'error'); }
     }
 
-    // モーダル外クリックで閉じる
-    document.getElementById('repost-modal').addEventListener('click', function (e) {
-      if (e.target === this) closeRepostModal();
-    });
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ユーティリティ
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    function toast(msg, type = '') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast' + (type ? ' ' + type : '');
+      el.classList.add('show');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => el.classList.remove('show'), 2800);
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '';
+      return new Date(iso).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function platformLabel(pl) {
+      return { x: 'X', facebook: 'Facebook', threads: 'Threads' }[pl] || pl;
+    }
+
+    function escHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
   </script>
 </body>
 
