@@ -134,11 +134,21 @@ def test_connection(
                 error = resp.text
 
         elif platform == "threads":
-            headers = {"Authorization": f"Bearer {config.get('access_token')}"}
-            resp = requests.get("https://graph.threads.net/v1.0/me", headers=headers)
-            success = resp.status_code == 200
-            if not success:
-                error = resp.text
+            # アクセストークンはクエリパラメータで渡す（Threads API の要件）
+            access_token = config.get("access_token_secret") or config.get("access_token")
+            resp = requests.get(
+                "https://graph.threads.net/v1.0/me",
+                params={"access_token": access_token, "fields": "id,username"},
+            )
+            body = resp.json() if resp.content else {}
+            if "error" in body:
+                err = body["error"]
+                error = f"Threads API エラー (code={err.get('code')}): {err.get('message', str(err))}"
+                success = False
+            else:
+                success = resp.status_code == 200
+                if not success:
+                    error = resp.text
 
         else:
             error = "未対応のプラットフォームです"
