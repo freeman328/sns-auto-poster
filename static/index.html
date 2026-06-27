@@ -443,8 +443,11 @@
     .upload-zone input {
       position: absolute;
       inset: 0;
+      width: 100%;
+      height: 100%;
       opacity: 0;
       cursor: pointer;
+      z-index: 2;
     }
 
     .upload-icon {
@@ -496,6 +499,26 @@
     .preview-remove:hover {
       background: var(--danger);
     }
+
+    .preview-item.loading::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+    }
+    .preview-item.loading::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 20px; height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      z-index: 1;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Timing ── */
     .timing-row {
@@ -1922,44 +1945,96 @@
     // 画像アップロード
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     async function handleImages(input) {
-      const files = Array.from(input.files).slice(0, 4 - uploadedImageUrls.length);
+      const remaining = 4 - uploadedImageUrls.length;
+      if (remaining <= 0) { toast('画像は最大4枚までです', 'error'); return; }
+
+      const files = Array.from(input.files).slice(0, remaining);
       if (files.length === 0) return;
 
       for (const file of files) {
+        // 1. まずローカルプレビューを即表示（ユーザーに選択できたことを伝える）
+        const localUrl = URL.createObjectURL(file);
+        const item = addPreview(localUrl, true); // true = ローディング中
+
+        // 2. サーバーにアップロード
         const formData = new FormData();
         formData.append('file', file);
         try {
           const resp = await apiFetch('/api/upload', { method: 'POST', body: formData });
-          if (!resp.ok) { toast('画像のアップロードに失敗しました', 'error'); continue; }
+          if (!resp.ok) {
+            const errText = await resp.text().catch(() => '');
+            item.remove();
+            URL.revokeObjectURL(localUrl);
+            toast(`画像アップロード失敗 (${resp.status}): ${errText.slice(0, 80)}`, 'error');
+            continue;
+          }
           const data = await resp.json();
+          // ローディング完了 → サーバーURLで管理
           uploadedImageUrls.push(data.url);
-          addPreview(data.url);
+          item.classList.remove('loading');
+          // 削除ボタンのハンドラをサーバーURLに更新
+          item.querySelector('.preview-remove').onclick = () => removeImage(data.url, item);
         } catch (e) {
+          item.remove();
+          URL.revokeObjectURL(localUrl);
           toast('アップロードエラー: ' + e.message, 'error');
         }
       }
-      // inputをリセット（同じファイルを再選択可能にする）
+      // 同じファイルを再選択できるようリセット
       input.value = '';
       updateUploadZone();
     }
 
-    function addPreview(url) {
+    // ドラッグ＆ドロップ対応
+    document.addEventListener('DOMContentLoaded', () => {
+      const zone = document.getElementById('upload-zone');
+      if (!zone) return;
+      zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        zone.style.borderColor = 'var(--accent)';
+        zone.style.background = 'rgba(108,99,255,0.06)';
+      });
+      zone.addEventListener('dragleave', () => {
+        zone.style.borderColor = '';
+        zone.style.background = '';
+      });
+      zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.style.borderColor = '';
+        zone.style.background = '';
+        const input = document.getElementById('image-input');
+        // DataTransfer から FileList を擬似的に渡す
+        const dt = e.dataTransfer;
+        if (dt && dt.files.length) handleImages({ files: dt.files });
+      });
+    });
+
+    function addPreview(url, loading = false) {
       const row = document.getElementById('preview-row');
       const item = document.createElement('div');
-      item.className = 'preview-item';
-      item.innerHTML = `<img src="${url}"><button class="preview-remove" onclick="removeImage('${url}',this)" title="削除">×</button>`;
+      item.className = 'preview-item' + (loading ? ' loading' : '');
+      const img = document.createElement('img');
+      img.src = url;
+      const btn = document.createElement('button');
+      btn.className = 'preview-remove';
+      btn.title = '削除';
+      btn.textContent = '×';
+      btn.onclick = () => removeImage(url, item);
+      item.appendChild(img);
+      item.appendChild(btn);
       row.appendChild(item);
+      return item;
     }
 
-    function removeImage(url, btn) {
+    function removeImage(url, itemEl) {
       uploadedImageUrls = uploadedImageUrls.filter(u => u !== url);
-      btn.closest('.preview-item').remove();
+      itemEl.remove();
       updateUploadZone();
     }
 
     function updateUploadZone() {
       const zone = document.getElementById('upload-zone');
-      zone.style.display = uploadedImageUrls.length >= 4 ? 'none' : 'block';
+      if (zone) zone.style.display = uploadedImageUrls.length >= 4 ? 'none' : 'block';
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━

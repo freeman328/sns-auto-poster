@@ -216,15 +216,17 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
             # ── テキスト投稿 ──
             resp = _threads_request(
                 "post", f"{base_url}/{user_id}/threads", access_token,
-                data={"media_type": "TEXT", "text": text},
+                params={"media_type": "TEXT", "text": text},
             )
             container_id = resp.json()["id"]
 
         elif len(image_urls) == 1:
             # ── 画像1枚 ──
+            public_url = _to_public_url(image_urls[0])
+            logger.info(f"Threads: 画像URL = {public_url}")
             resp = _threads_request(
                 "post", f"{base_url}/{user_id}/threads", access_token,
-                data={"media_type": "IMAGE", "image_url": _to_public_url(image_urls[0]), "text": text},
+                params={"media_type": "IMAGE", "image_url": public_url, "text": text},
             )
             container_id = resp.json()["id"]
             # 画像コンテナの処理完了を待つ（必須）
@@ -234,9 +236,11 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
             # ── カルーセル（複数画像）──
             item_ids = []
             for url in image_urls[:10]:
+                public_url = _to_public_url(url)
+                logger.info(f"Threads: カルーセル画像URL = {public_url}")
                 r = _threads_request(
                     "post", f"{base_url}/{user_id}/threads", access_token,
-                    data={"media_type": "IMAGE", "image_url": _to_public_url(url), "is_carousel_item": "true"},
+                    params={"media_type": "IMAGE", "image_url": public_url, "is_carousel_item": "true"},
                 )
                 cid = r.json()["id"]
                 _wait_for_threads_container(base_url, cid, access_token)
@@ -244,7 +248,7 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
 
             resp = _threads_request(
                 "post", f"{base_url}/{user_id}/threads", access_token,
-                data={"media_type": "CAROUSEL", "children": ",".join(item_ids), "text": text},
+                params={"media_type": "CAROUSEL", "children": ",".join(item_ids), "text": text},
             )
             container_id = resp.json()["id"]
             _wait_for_threads_container(base_url, container_id, access_token)
@@ -252,7 +256,7 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
         # ── 公開 ──
         pub_resp = _threads_request(
             "post", f"{base_url}/{user_id}/threads_publish", access_token,
-            data={"creation_id": container_id},
+            params={"creation_id": container_id},
         )
         post_id = pub_resp.json()["id"]
         return {

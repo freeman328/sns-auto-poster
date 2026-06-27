@@ -1,247 +1,114 @@
 """
-各SNSへの投稿処理
-X (Twitter), Facebook, Threads の API 呼び出し
+投稿履歴 / 統計 ルーター
 """
+from datetime import datetime, timedelta, timezone
 
-import logging
-import os
-from typing import List, Dict
-
-import requests
-import tweepy
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from .database import Settings
+from ..database import get_db, Post, PostStatus, User
+from ..auth import get_current_user
 
-logger = logging.getLogger(__name__)
-
-# 画像を外部公開するためのベースURL (ngrok等で公開している場合はそのURLに変更)
-BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://zi-dong-tou-gao-tsuruapuri.onrender.com")
+router = APIRouter()
 
 
-def get_platform_config(platform: str, db: Session, user_id: int) -> dict:
-    """DBからAPIキー設定を取得（ユーザーごと）"""
-    setting = db.query(Settings).filter(
-        Settings.platform == platform,
-        Settings.user_id == user_id,
-    ).first()
-    if setting and setting.config:
-        return setting.config
-    return {}
+def serialize_post(post: Post) -> dict:
+    def _fmt(dt):
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+
+    return {
+        "id": post.id,
+        "text": post.text,
+        "platforms": post.platforms or [],
+        "image_urls": post.image_urls or [],
+        "scheduled_at": _fmt(post.scheduled_at),
+        "posted_at": _fmt(post.posted_at),
+        "status": post.status,
+        "error_message": post.error_message,
+        "created_at": _fmt(post.created_at),
+        "repeat": post.repeat,
+        "weekdays": post.weekdays,
+    }
 
 
-# ────────────────────────────────────────────
-# X (Twitter)
-# ────────────────────────────────────────────
-
-def post_to_x(text: str, image_urls: List[str], config: dict) -> dict:
-    """X (Twitter) v2 API で投稿"""
-    try:
-        client = tweepy.Client(
-            consumer_key=config["api_key"],
-            consumer_secret=config["api_secret"],
-            access_token=config["access_token"],
-            access_token_secret=config["access_token_secret"],
+@router.get("/")
+def get_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """投稿履歴（下書き・投稿済み・失敗）を返す"""
+    posts = (
+        db.query(Post)
+        .filter(
+            Post.user_id == current_user.id,
+            Post.status.in_([PostStatus.POSTED, PostStatus.FAILED, PostStatus.DRAFT]),
         )
-
-        media_ids = []
-        if image_urls:
-            auth = tweepy.OAuth1UserHandler(
-                config["api_key"], config["api_secret"],
-                config["access_token"], config["access_token_secret"],
-            )
-            api_v1 = tweepy.API(auth)
-            for url in image_urls[:4]:
-                local_path = url.lstrip("/")
-                if os.path.exists(local_path):
-                    media = api_v1.media_upload(local_path)
-                    media_ids.append(media.media_id)
-
-        kwargs = {"text": text}
-        if media_ids:
-            kwargs["media_ids"] = media_ids
-
-        response = client.create_tweet(**kwargs)
-        tweet_id = response.data["id"]
-        return {
-            "success": True,
-            "post_id": tweet_id,
-            "url": f"https://twitter.com/i/web/status/{tweet_id}",
-        }
-
-    except Exception as e:
-        logger.error(f"X投稿エラー: {e}")
-        return {"success": False, "error": str(e)}
+        .order_by(Post.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    return [serialize_post(p) for p in posts]
 
 
-# ────────────────────────────────────────────
-# Facebook
-# ────────────────────────────────────────────
+@router.get("/stats")
+def get_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """投稿統計を返す"""
+    uid = current_user.id
+    now = datetime.now(timezone.utc)
+    week_ago = now - timedelta(days=7)
 
-def post_to_facebook(text: str, image_urls: List[str], config: dict) -> dict:
-    """Facebook Graph API でページ投稿"""
-    try:
-        # UIから保存される形式に合わせて両方のキー名に対応
-        page_id = config.get("page_id") or config.get("api_key")
-        access_token = config.get("page_access_token") or config.get("access_token_secret")
-        base_url = "https://graph.facebook.com/v18.0"
-
-        if image_urls:
-            photo_ids = []
-            for url in image_urls[:4]:
-                local_path = url.lstrip("/")
-                if os.path.exists(local_path):
-                    with open(local_path, "rb") as f:
-                        resp = requests.post(
-                            f"{base_url}/{page_id}/photos",
-                            data={"access_token": access_token, "published": "false"},
-                            files={"source": f},
-                        )
-                    resp.raise_for_status()
-                    photo_ids.append({"media_fbid": resp.json()["id"]})
-
-            payload = {
-                "message": text,
-                "access_token": access_token,
-                "attached_media": photo_ids,
-            }
-            resp = requests.post(f"{base_url}/{page_id}/feed", json=payload)
-        else:
-            resp = requests.post(
-                f"{base_url}/{page_id}/feed",
-                data={"message": text, "access_token": access_token},
-            )
-
-        resp.raise_for_status()
-        post_id = resp.json().get("id", "")
-        return {
-            "success": True,
-            "post_id": post_id,
-            "url": f"https://facebook.com/{post_id}",
-        }
-
-    except Exception as e:
-        logger.error(f"Facebook投稿エラー: {e}")
-        return {"success": False, "error": str(e)}
-
-
-# ────────────────────────────────────────────
-# Threads
-# ────────────────────────────────────────────
-
-def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
-    """Threads API (Meta) で投稿"""
-    try:
-        user_id = config.get("user_id") or config.get("api_key")
-        access_token = config.get("access_token_secret") or config.get("access_token")
-        base_url = "https://graph.threads.net/v1.0"
-
-        if not image_urls:
-            payload = {
-                "access_token": access_token,
-                "media_type": "TEXT",
-                "text": text,
-            }
-            resp = requests.post(f"{base_url}/{user_id}/threads", data=payload)
-
-        elif len(image_urls) == 1:
-            image_url = (
-                image_urls[0]
-                if image_urls[0].startswith("http")
-                else BASE_URL + image_urls[0]
-            )
-            payload = {
-                "access_token": access_token,
-                "media_type": "IMAGE",
-                "image_url": image_url,
-                "text": text,
-            }
-            resp = requests.post(f"{base_url}/{user_id}/threads", data=payload)
-
-        else:
-            item_ids = []
-            for url in image_urls[:10]:
-                image_url = url if url.startswith("http") else BASE_URL + url
-                r = requests.post(
-                    f"{base_url}/{user_id}/threads",
-                    data={
-                        "access_token": access_token,
-                        "media_type": "IMAGE",
-                        "image_url": image_url,
-                        "is_carousel_item": "true",
-                    },
-                )
-                r.raise_for_status()
-                item_ids.append(r.json()["id"])
-
-            resp = requests.post(
-                f"{base_url}/{user_id}/threads",
-                data={
-                    "access_token": access_token,
-                    "media_type": "CAROUSEL",
-                    "children": ",".join(item_ids),
-                    "text": text,
-                },
-            )
-
-        resp.raise_for_status()
-        resp_json = resp.json()
-        if "error" in resp_json:
-            raise Exception(resp_json["error"].get("message", str(resp_json["error"])))
-
-        container_id = resp_json["id"]
-
-        pub_resp = requests.post(
-            f"{base_url}/{user_id}/threads_publish",
-            data={
-                "creation_id": container_id,
-                "access_token": access_token,
-            },
+    total_posted = (
+        db.query(Post)
+        .filter(Post.user_id == uid, Post.status == PostStatus.POSTED)
+        .count()
+    )
+    scheduled = (
+        db.query(Post)
+        .filter(
+            Post.user_id == uid,
+            Post.status == PostStatus.PENDING,
+            Post.scheduled_at.isnot(None),
         )
-        pub_resp.raise_for_status()
-        pub_json = pub_resp.json()
-        if "error" in pub_json:
-            raise Exception(pub_json["error"].get("message", str(pub_json["error"])))
+        .count()
+    )
+    drafts = (
+        db.query(Post)
+        .filter(Post.user_id == uid, Post.status == PostStatus.DRAFT)
+        .count()
+    )
+    weekly_posts = (
+        db.query(Post)
+        .filter(
+            Post.user_id == uid,
+            Post.status == PostStatus.POSTED,
+            Post.posted_at >= week_ago,
+        )
+        .count()
+    )
 
-        post_id = pub_json["id"]
-        return {
-            "success": True,
-            "post_id": post_id,
-            "url": f"https://www.threads.net/t/{post_id}",
-        }
+    # プラットフォーム別投稿数（SQLite JSON配列検索）
+    posted_posts = (
+        db.query(Post)
+        .filter(Post.user_id == uid, Post.status == PostStatus.POSTED)
+        .all()
+    )
+    by_platform = {"x": 0, "facebook": 0, "threads": 0}
+    for p in posted_posts:
+        for pl in (p.platforms or []):
+            if pl in by_platform:
+                by_platform[pl] += 1
 
-    except Exception as e:
-        logger.error(f"Threads投稿エラー: {e}")
-        return {"success": False, "error": str(e)}
-
-
-# ────────────────────────────────────────────
-# ディスパッチャー
-# ────────────────────────────────────────────
-
-def post_to_platforms(
-    text: str,
-    platforms: List[str],
-    image_urls: List[str],
-    db: Session,
-    user_id: int,
-) -> Dict[str, dict]:
-    """指定プラットフォームに一括投稿"""
-    results = {}
-
-    for platform in platforms:
-        config = get_platform_config(platform, db, user_id)
-        if not config:
-            results[platform] = {"success": False, "error": "APIキーが設定されていません"}
-            continue
-
-        if platform == "x":
-            results["x"] = post_to_x(text, image_urls, config)
-        elif platform == "facebook":
-            results["facebook"] = post_to_facebook(text, image_urls, config)
-        elif platform == "threads":
-            results["threads"] = post_to_threads(text, image_urls, config)
-        else:
-            results[platform] = {"success": False, "error": f"未対応のプラットフォーム: {platform}"}
-
-    return results
+    return {
+        "total_posted": total_posted,
+        "scheduled": scheduled,
+        "drafts": drafts,
+        "weekly_posts": weekly_posts,
+        "by_platform": by_platform,
+    }
