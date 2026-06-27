@@ -117,11 +117,13 @@ def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: U
     if sched_dt and post.status == PostStatus.PENDING:
         schedule_post(post.id, sched_dt)
     else:
-        # 実際にSNSに投げるロジックを呼び出す
         results = post_to_platforms(post.text, post.platforms, post.image_urls, db)
-        # 結果をDBに反映
-        post.status = PostStatus.POSTED
-        post.platform_post_ids = results # 投稿IDなどを保存
+        all_success = all(r.get("success") for r in results.values())
+        post.status = PostStatus.POSTED if all_success else PostStatus.FAILED
+        post.platform_post_ids = {p: r.get("post_id") for p, r in results.items() if r.get("success")}
+        if not all_success:
+            errors = {p: r.get("error") for p, r in results.items() if not r.get("success")}
+            post.error_message = str(errors)
         db.commit()
     
     return serialize_post(post)

@@ -124,60 +124,52 @@ def post_to_facebook(text: str, image_urls: List[str], config: dict) -> dict:
 def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
     """Threads API (Meta) で投稿"""
     try:
-        print(config["access_token_secret"])
         user_id = config.get("user_id") or config.get("api_key")
-        access_token = config["access_token_secret"]
+        access_token = config.get("access_token_secret") or config.get("access_token")
         base_url = "https://graph.threads.net/v1.0"
 
         # ── STEP1: コンテナ作成 ──
-        payload = {
-            "access_token": access_token,
-            "media_type": "TEXT",
-            "text": text,
-        }
-
-        resp = requests.post(
-            f"{base_url}/{user_id}/threads",
-            data=payload
-        )
-
-        print("THREADS RESPONSE:", resp.status_code, resp.text)
-        resp.raise_for_status()
-
         if not image_urls:
             # テキストのみ
-            payload["media_type"] = "TEXT"
-            resp = requests.post(
-                f"{base_url}/{user_id}/threads",
-                params=payload
-            )
+            payload = {
+                "access_token": access_token,
+                "media_type": "TEXT",
+                "text": text,
+            }
+            resp = requests.post(f"{base_url}/{user_id}/threads", data=payload)
+
         elif len(image_urls) == 1:
             # シングル画像（公開URLが必要）
-            payload["media_type"] = "IMAGE"
-            payload["image_url"] = image_urls[0] if image_urls[0].startswith("http") else BASE_URL + image_urls[0]
-            resp = requests.post(
-                f"{base_url}/{user_id}/threads",
-                params=payload
-            )
+            image_url = image_urls[0] if image_urls[0].startswith("http") else BASE_URL + image_urls[0]
+            payload = {
+                "access_token": access_token,
+                "media_type": "IMAGE",
+                "image_url": image_url,
+                "text": text,
+            }
+            resp = requests.post(f"{base_url}/{user_id}/threads", data=payload)
+
         else:
-            # カルーセル
+            # カルーセル: 各画像のコンテナを作成
             item_ids = []
             for url in image_urls[:10]:
+                image_url = url if url.startswith("http") else BASE_URL + url
                 r = requests.post(
                     f"{base_url}/{user_id}/threads",
-                    params={
+                    data={
                         "access_token": access_token,
                         "media_type": "IMAGE",
-                        "image_url": url if url.startswith("http") else BASE_URL + url,
+                        "image_url": image_url,
                         "is_carousel_item": "true",
                     }
                 )
                 r.raise_for_status()
                 item_ids.append(r.json()["id"])
 
+            # カルーセルコンテナ
             resp = requests.post(
                 f"{base_url}/{user_id}/threads",
-                params={
+                data={
                     "access_token": access_token,
                     "media_type": "CAROUSEL",
                     "children": ",".join(item_ids),
@@ -185,6 +177,7 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
                 }
             )
 
+        print("THREADS RESPONSE:", resp.status_code, resp.text)
         resp.raise_for_status()
         resp_json = resp.json()
         if "error" in resp_json:
@@ -195,7 +188,7 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
         # ── STEP2: 公開 ──
         pub_resp = requests.post(
             f"{base_url}/{user_id}/threads_publish",
-            params={
+            data={
                 "creation_id": container_id,
                 "access_token": access_token,
             }
