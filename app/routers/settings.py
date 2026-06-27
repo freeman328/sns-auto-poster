@@ -55,7 +55,10 @@ def get_setting(
         Settings.user_id == current_user.id
     ).first()
     
-    return {"config": setting.config if setting else {}}
+    return {
+        "config": setting.config if setting else {},
+        "is_connected": setting.is_connected if setting else False
+    }
 
 @router.post("/{platform}")
 def update_setting(
