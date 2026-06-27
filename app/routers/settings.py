@@ -1,76 +1,75 @@
 """
-API設定 ルーター (フォーム非表示バグ完全解消版)
+API設定 ルーター
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import Dict, Any, Optional
+from typing import Dict, Any
+
 import tweepy
 import requests
 
 from ..database import get_db, Settings, User
 from ..auth import get_current_user
-from fastapi import Depends
 
 router = APIRouter()
 
+
 class SettingsUpdateBody(BaseModel):
-    config: Dict[str, Any]  # {"api_key": "...", "api_secret": "..."} などを辞書型で受け取る
+    config: Dict[str, Any]
+
 
 @router.get("/")
-def get_all_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """現在ログインしているユーザーの全プラットフォームの設定を取得"""
+def get_all_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     settings_list = db.query(Settings).filter(Settings.user_id == current_user.id).all()
-    
-    # フロントエンドが処理しやすいようにプラットフォーム名をキーにした辞書に整形
+
     result = {}
     platforms = ["x", "facebook", "threads"]
-    
-    # 既存の設定をマッピング
+
     for s in settings_list:
         result[s.platform] = {
             "config": s.config or {},
-            "is_connected": s.is_connected or False
+            "is_connected": s.is_connected or False,
         }
-        
-    # データベースにまだ存在しないプラットフォームがあれば、空の設定を作って返す（フロントのクラッシュ防止）
+
     for platform in platforms:
         if platform not in result:
-            result[platform] = {
-                "config": {},
-                "is_connected": False
-            }
-            
+            result[platform] = {"config": {}, "is_connected": False}
+
     return result
+
 
 @router.get("/{platform}")
 def get_setting(
-    platform: str, 
-    db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user)
+    platform: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """特定のプラットフォームの設定を取得"""
     setting = db.query(Settings).filter(
         Settings.platform == platform.lower(),
-        Settings.user_id == current_user.id
+        Settings.user_id == current_user.id,
     ).first()
-    
+
     return {
         "config": setting.config if setting else {},
-        "is_connected": setting.is_connected if setting else False
+        "is_connected": setting.is_connected if setting else False,
     }
+
 
 @router.post("/{platform}")
 def update_setting(
-    platform: str, 
-    body: SettingsUpdateBody, 
-    db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user)
+    platform: str,
+    body: SettingsUpdateBody,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         setting = db.query(Settings).filter(
             Settings.platform == platform.lower(),
-            Settings.user_id == current_user.id
+            Settings.user_id == current_user.id,
         ).first()
 
         has_keys = any(body.config.values())
@@ -83,28 +82,27 @@ def update_setting(
                 platform=platform.lower(),
                 user_id=current_user.id,
                 config=body.config,
-                is_connected=has_keys
+                is_connected=has_keys,
             )
             db.add(setting)
 
         db.commit()
         db.refresh(setting)
-        
-        print("受信データ:", body.config)
         return {"status": "success", "message": "保存完了"}
     except Exception as e:
-        db.rollback()  # エラー時は元に戻す
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"保存に失敗しました: {str(e)}")
+
 
 @router.post("/test/{platform}")
 def test_connection(
-    platform: str, 
-    db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user)
+    platform: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     setting = db.query(Settings).filter(
         Settings.platform == platform.lower(),
-        Settings.user_id == current_user.id
+        Settings.user_id == current_user.id,
     ).first()
 
     if not setting or not setting.config:
@@ -116,7 +114,6 @@ def test_connection(
 
     try:
         if platform == "x":
-            # ここでクライアントを生成して、即座にテスト
             client = tweepy.Client(
                 consumer_key=config.get("api_key"),
                 consumer_secret=config.get("api_secret"),
@@ -125,24 +122,24 @@ def test_connection(
             )
             response = client.get_me()
             success = response.data is not None
-            
+
         elif platform == "facebook":
-            # Facebookのテスト（ページトークン検証）
-            resp = requests.get("https://graph.facebook.com/v18.0/me", 
-                               params={"access_token_secret": config.get("access_token_secret")})
+            # 【修正4】パラメータ名を access_token_secret → access_token に修正
+            resp = requests.get(
+                "https://graph.facebook.com/v18.0/me",
+                params={"access_token": config.get("page_access_token")},
+            )
             success = resp.status_code == 200
-            if not success: error = resp.text
-            
+            if not success:
+                error = resp.text
+
         elif platform == "threads":
-            headers = {
-                "Authorization": f"Bearer {config.get('access_token_secret')}"
-            }
+            headers = {"Authorization": f"Bearer {config.get('access_token')}"}
             resp = requests.get("https://graph.threads.net/v1.0/me", headers=headers)
-            print(f"DEBUG: Threads Response Code: {resp.status_code}")
-            print(f"DEBUG: Threads Response Body: {resp.text}")
             success = resp.status_code == 200
-            if not success: error = resp.text
-            
+            if not success:
+                error = resp.text
+
         else:
             error = "未対応のプラットフォームです"
 
@@ -150,7 +147,6 @@ def test_connection(
         error = str(e)
         success = False
 
-    # DB更新
     setting.is_connected = success
     db.commit()
     return {"success": success, "message": "接続テスト完了" if success else error}

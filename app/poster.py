@@ -3,28 +3,27 @@
 X (Twitter), Facebook, Threads の API 呼び出し
 """
 
-import tweepy
-import requests
 import logging
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict
+
+import requests
+import tweepy
 from sqlalchemy.orm import Session
 
 from .database import Settings
 
 logger = logging.getLogger(__name__)
 
-# 画像を外部公開するためのベースURL
-# ngrok等で公開している場合はそのURLに変更してください
-# 例: BASE_URL = "https://xxxx.ngrok.io"
-BASE_URL = "https://zi-dong-tou-gao-tsuruapuri.onrender.com"
+# 画像を外部公開するためのベースURL (ngrok等で公開している場合はそのURLに変更)
+BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://zi-dong-tou-gao-tsuruapuri.onrender.com")
 
 
 def get_platform_config(platform: str, db: Session, user_id: int) -> dict:
     """DBからAPIキー設定を取得（ユーザーごと）"""
     setting = db.query(Settings).filter(
         Settings.platform == platform,
-        Settings.user_id == user_id
+        Settings.user_id == user_id,
     ).first()
     if setting and setting.config:
         return setting.config
@@ -47,14 +46,13 @@ def post_to_x(text: str, image_urls: List[str], config: dict) -> dict:
 
         media_ids = []
         if image_urls:
-            # v1.1 APIで画像アップロード
             auth = tweepy.OAuth1UserHandler(
                 config["api_key"], config["api_secret"],
-                config["access_token"], config["access_token_secret"]
+                config["access_token"], config["access_token_secret"],
             )
             api_v1 = tweepy.API(auth)
             for url in image_urls[:4]:
-                local_path = url.lstrip("/")  # /uploads/xxx.jpg -> uploads/xxx.jpg
+                local_path = url.lstrip("/")
                 if os.path.exists(local_path):
                     media = api_v1.media_upload(local_path)
                     media_ids.append(media.media_id)
@@ -65,7 +63,11 @@ def post_to_x(text: str, image_urls: List[str], config: dict) -> dict:
 
         response = client.create_tweet(**kwargs)
         tweet_id = response.data["id"]
-        return {"success": True, "post_id": tweet_id, "url": f"https://twitter.com/i/web/status/{tweet_id}"}
+        return {
+            "success": True,
+            "post_id": tweet_id,
+            "url": f"https://twitter.com/i/web/status/{tweet_id}",
+        }
 
     except Exception as e:
         logger.error(f"X投稿エラー: {e}")
@@ -84,7 +86,6 @@ def post_to_facebook(text: str, image_urls: List[str], config: dict) -> dict:
         base_url = "https://graph.facebook.com/v18.0"
 
         if image_urls:
-            # 画像付き投稿
             photo_ids = []
             for url in image_urls[:4]:
                 local_path = url.lstrip("/")
@@ -93,7 +94,7 @@ def post_to_facebook(text: str, image_urls: List[str], config: dict) -> dict:
                         resp = requests.post(
                             f"{base_url}/{page_id}/photos",
                             data={"access_token": access_token, "published": "false"},
-                            files={"source": f}
+                            files={"source": f},
                         )
                     resp.raise_for_status()
                     photo_ids.append({"media_fbid": resp.json()["id"]})
@@ -101,19 +102,22 @@ def post_to_facebook(text: str, image_urls: List[str], config: dict) -> dict:
             payload = {
                 "message": text,
                 "access_token": access_token,
-                "attached_media": photo_ids
+                "attached_media": photo_ids,
             }
             resp = requests.post(f"{base_url}/{page_id}/feed", json=payload)
         else:
-            # テキストのみ
-            resp = requests.post(f"{base_url}/{page_id}/feed", data={
-                "message": text,
-                "access_token": access_token
-            })
+            resp = requests.post(
+                f"{base_url}/{page_id}/feed",
+                data={"message": text, "access_token": access_token},
+            )
 
         resp.raise_for_status()
         post_id = resp.json().get("id", "")
-        return {"success": True, "post_id": post_id, "url": f"https://facebook.com/{post_id}"}
+        return {
+            "success": True,
+            "post_id": post_id,
+            "url": f"https://facebook.com/{post_id}",
+        }
 
     except Exception as e:
         logger.error(f"Facebook投稿エラー: {e}")
@@ -131,9 +135,7 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
         access_token = config.get("access_token_secret") or config.get("access_token")
         base_url = "https://graph.threads.net/v1.0"
 
-        # ── STEP1: コンテナ作成 ──
         if not image_urls:
-            # テキストのみ
             payload = {
                 "access_token": access_token,
                 "media_type": "TEXT",
@@ -142,8 +144,11 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
             resp = requests.post(f"{base_url}/{user_id}/threads", data=payload)
 
         elif len(image_urls) == 1:
-            # シングル画像（公開URLが必要）
-            image_url = image_urls[0] if image_urls[0].startswith("http") else BASE_URL + image_urls[0]
+            image_url = (
+                image_urls[0]
+                if image_urls[0].startswith("http")
+                else BASE_URL + image_urls[0]
+            )
             payload = {
                 "access_token": access_token,
                 "media_type": "IMAGE",
@@ -153,7 +158,6 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
             resp = requests.post(f"{base_url}/{user_id}/threads", data=payload)
 
         else:
-            # カルーセル: 各画像のコンテナを作成
             item_ids = []
             for url in image_urls[:10]:
                 image_url = url if url.startswith("http") else BASE_URL + url
@@ -164,12 +168,11 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
                         "media_type": "IMAGE",
                         "image_url": image_url,
                         "is_carousel_item": "true",
-                    }
+                    },
                 )
                 r.raise_for_status()
                 item_ids.append(r.json()["id"])
 
-            # カルーセルコンテナ
             resp = requests.post(
                 f"{base_url}/{user_id}/threads",
                 data={
@@ -177,10 +180,9 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
                     "media_type": "CAROUSEL",
                     "children": ",".join(item_ids),
                     "text": text,
-                }
+                },
             )
 
-        print("THREADS RESPONSE:", resp.status_code, resp.text)
         resp.raise_for_status()
         resp_json = resp.json()
         if "error" in resp_json:
@@ -188,13 +190,12 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
 
         container_id = resp_json["id"]
 
-        # ── STEP2: 公開 ──
         pub_resp = requests.post(
             f"{base_url}/{user_id}/threads_publish",
             data={
                 "creation_id": container_id,
                 "access_token": access_token,
-            }
+            },
         )
         pub_resp.raise_for_status()
         pub_json = pub_resp.json()
@@ -202,8 +203,11 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
             raise Exception(pub_json["error"].get("message", str(pub_json["error"])))
 
         post_id = pub_json["id"]
-        return {"success": True, "post_id": post_id,
-                "url": f"https://www.threads.net/t/{post_id}"}
+        return {
+            "success": True,
+            "post_id": post_id,
+            "url": f"https://www.threads.net/t/{post_id}",
+        }
 
     except Exception as e:
         logger.error(f"Threads投稿エラー: {e}")
@@ -219,7 +223,7 @@ def post_to_platforms(
     platforms: List[str],
     image_urls: List[str],
     db: Session,
-    user_id: int
+    user_id: int,
 ) -> Dict[str, dict]:
     """指定プラットフォームに一括投稿"""
     results = {}

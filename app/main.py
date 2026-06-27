@@ -3,15 +3,15 @@ SNS自動投稿ツール - メインアプリケーション
 起動: uvicorn app.main:app --reload --port 8000
 """
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, List
-import uvicorn
 import os
 import shutil
 import uuid
+
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 from .database import init_db, get_db
 from .scheduler import init_scheduler, shutdown_scheduler
@@ -19,9 +19,13 @@ from .routers import posts, settings, history, auth
 
 app = FastAPI(title="SNS自動投稿ツール", version="1.0.0")
 
+# 【修正3】CORS は環境変数で許可オリジンを管理し、本番では * を使わない
+_raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,7 +70,7 @@ async def upload_image(file: UploadFile = File(...)):
     if file.content_type not in allowed_types:
         raise HTTPException(400, "対応形式: JPEG, PNG, GIF, WEBP")
 
-    ext = file.filename.split(".")[-1]
+    ext = file.filename.rsplit(".", 1)[-1].lower()
     filename = f"{uuid.uuid4()}.{ext}"
     filepath = f"uploads/{filename}"
 
