@@ -84,7 +84,8 @@ def execute_post(post_id: int):
             text=post.text,
             platforms=post.platforms,
             image_urls=post.image_urls,
-            db=db
+            db=db,
+            user_id=post.user_id
         )
 
         all_success = all(r.get("success") for r in results.values())

@@ -20,9 +20,12 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://zi-dong-tou-gao-tsuruapuri.onrender.com"
 
 
-def get_platform_config(platform: str, db: Session) -> dict:
-    """DBからAPIキー設定を取得"""
-    setting = db.query(Settings).filter(Settings.platform == platform).first()
+def get_platform_config(platform: str, db: Session, user_id: int) -> dict:
+    """DBからAPIキー設定を取得（ユーザーごと）"""
+    setting = db.query(Settings).filter(
+        Settings.platform == platform,
+        Settings.user_id == user_id
+    ).first()
     if setting and setting.config:
         return setting.config
     return {}
@@ -215,13 +218,14 @@ def post_to_platforms(
     text: str,
     platforms: List[str],
     image_urls: List[str],
-    db: Session
+    db: Session,
+    user_id: int
 ) -> Dict[str, dict]:
     """指定プラットフォームに一括投稿"""
     results = {}
 
     for platform in platforms:
-        config = get_platform_config(platform, db)
+        config = get_platform_config(platform, db, user_id)
         if not config:
             results[platform] = {"success": False, "error": "APIキーが設定されていません"}
             continue

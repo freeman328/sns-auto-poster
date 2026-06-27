@@ -117,7 +117,7 @@ def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: U
     if sched_dt and post.status == PostStatus.PENDING:
         schedule_post(post.id, sched_dt)
     else:
-        results = post_to_platforms(post.text, post.platforms, post.image_urls, db)
+        results = post_to_platforms(post.text, post.platforms, post.image_urls, db, current_user.id)
         all_success = all(r.get("success") for r in results.values())
         post.status = PostStatus.POSTED if all_success else PostStatus.FAILED
         post.platform_post_ids = {p: r.get("post_id") for p, r in results.items() if r.get("success")}
@@ -192,9 +192,13 @@ def repost(post_id: int, body: RepostBody, db: Session = Depends(get_db), curren
     if sched_dt:
         schedule_post(new_post.id, sched_dt)
     else:
-        results = post_to_platforms(new_post.text, new_post.platforms, new_post.image_urls, db)
-        new_post.status = PostStatus.POSTED
-        new_post.platform_post_ids = results
+        results = post_to_platforms(new_post.text, new_post.platforms, new_post.image_urls, db, current_user.id)
+        all_success = all(r.get("success") for r in results.values())
+        new_post.status = PostStatus.POSTED if all_success else PostStatus.FAILED
+        new_post.platform_post_ids = {p: r.get("post_id") for p, r in results.items() if r.get("success")}
+        if not all_success:
+            errors = {p: r.get("error") for p, r in results.items() if not r.get("success")}
+            new_post.error_message = str(errors)
         db.commit()
 
     return serialize_post(new_post)
