@@ -20,12 +20,20 @@ BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://zi-dong-tou-gao-tsuruapuri.onre
 
 
 def get_platform_config(platform: str, db: Session, user_id: int) -> dict:
-    """DBからAPIキー設定を取得（ユーザーごと）"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # 全件取得して確認
+    all_settings = db.query(Settings).filter(Settings.user_id == user_id).all()
+    logger.warning(f"[DEBUG] user_id={user_id}, platform='{platform}', 全設定={[(s.platform, s.user_id, bool(s.config)) for s in all_settings]}")
+    
     setting = db.query(Settings).filter(
         Settings.platform == platform,
         Settings.user_id == user_id,
     ).first()
-    # 【修正】setting.config が空辞書 {} でも falsy になるため is not None で判定
+    
+    logger.warning(f"[DEBUG] クエリ結果: {setting}, config={setting.config if setting else None}")
+    
     if setting and setting.config is not None:
         return setting.config
     return {}
