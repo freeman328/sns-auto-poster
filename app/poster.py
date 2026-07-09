@@ -129,6 +129,20 @@ def post_to_facebook(text: str, image_urls: List[str], config: dict) -> dict:
 # Threads
 # ────────────────────────────────────────────
 
+def _threads_check(resp: requests.Response) -> dict:
+    """Threads APIのレスポンスを検証し、失敗時はMetaのエラーメッセージ付きで例外を送出する"""
+    try:
+        resp_json = resp.json()
+    except ValueError:
+        resp.raise_for_status()
+        raise Exception(f"予期しないレスポンス: {resp.text}")
+
+    if not resp.ok or "error" in resp_json:
+        err = resp_json.get("error", {})
+        raise Exception(err.get("message", str(err) or resp.text))
+    return resp_json
+
+
 def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
     """Threads API (Meta) で投稿"""
     try:
@@ -172,8 +186,7 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
                         "is_carousel_item": "true",
                     },
                 )
-                r.raise_for_status()
-                item_ids.append(r.json()["id"])
+                item_ids.append(_threads_check(r)["id"])
 
             resp = requests.post(
                 f"{base_url}/{user_id}/threads",
@@ -185,12 +198,7 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
                 },
             )
 
-        resp.raise_for_status()
-        resp_json = resp.json()
-        if "error" in resp_json:
-            raise Exception(resp_json["error"].get("message", str(resp_json["error"])))
-
-        container_id = resp_json["id"]
+        container_id = _threads_check(resp)["id"]
 
         pub_resp = requests.post(
             f"{base_url}/{user_id}/threads_publish",
@@ -199,12 +207,7 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
                 "access_token": access_token,
             },
         )
-        pub_resp.raise_for_status()
-        pub_json = pub_resp.json()
-        if "error" in pub_json:
-            raise Exception(pub_json["error"].get("message", str(pub_json["error"])))
-
-        post_id = pub_json["id"]
+        post_id = _threads_check(pub_resp)["id"]
         return {
             "success": True,
             "post_id": post_id,
