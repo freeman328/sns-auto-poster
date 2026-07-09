@@ -5,6 +5,7 @@ X (Twitter), Facebook, Threads の API 呼び出し
 
 import logging
 import os
+import time
 from typing import List, Dict
 
 import requests
@@ -143,6 +144,26 @@ def _threads_check(resp: requests.Response) -> dict:
     return resp_json
 
 
+def _threads_wait_until_ready(
+    container_id: str, access_token: str, base_url: str, timeout: int = 30, interval: int = 2
+) -> None:
+    """画像を含むコンテナはMeta側の処理完了まで数十秒かかるため、公開前にステータスをポーリングする
+    (公式ドキュメント: publish前に平均30秒程度の処理時間を見込む必要がある)"""
+    elapsed = 0
+    while elapsed < timeout:
+        resp = requests.get(
+            f"{base_url}/{container_id}",
+            params={"fields": "status", "access_token": access_token},
+        )
+        status = _threads_check(resp).get("status")
+        if status == "FINISHED":
+            return
+        if status == "ERROR":
+            raise Exception("メディアの処理に失敗しました")
+        time.sleep(interval)
+        elapsed += interval
+
+
 def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
     """Threads API (Meta) で投稿"""
     try:
@@ -186,7 +207,9 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
                         "is_carousel_item": "true",
                     },
                 )
-                item_ids.append(_threads_check(r)["id"])
+                item_id = _threads_check(r)["id"]
+                _threads_wait_until_ready(item_id, access_token, base_url)
+                item_ids.append(item_id)
 
             resp = requests.post(
                 f"{base_url}/{user_id}/threads",
@@ -199,6 +222,9 @@ def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
             )
 
         container_id = _threads_check(resp)["id"]
+        if image_urls:
+            # 画像を含む場合のみMeta側の処理完了を待つ（TEXTのみの投稿は即時公開可能）
+            _threads_wait_until_ready(container_id, access_token, base_url)
 
         pub_resp = requests.post(
             f"{base_url}/{user_id}/threads_publish",
