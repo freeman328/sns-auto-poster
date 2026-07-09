@@ -20,20 +20,12 @@ BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://zi-dong-tou-gao-tsuruapuri.onre
 
 
 def get_platform_config(platform: str, db: Session, user_id: int) -> dict:
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    # 全件取得して確認
-    all_settings = db.query(Settings).filter(Settings.user_id == user_id).all()
-    logger.warning(f"[DEBUG] user_id={user_id}, platform='{platform}', 全設定={[(s.platform, s.user_id, bool(s.config)) for s in all_settings]}")
-    
+    """DBからAPIキー設定を取得（ユーザーごと）"""
     setting = db.query(Settings).filter(
         Settings.platform == platform,
         Settings.user_id == user_id,
     ).first()
-    
-    logger.warning(f"[DEBUG] クエリ結果: {setting}, config={setting.config if setting else None}")
-    
+    # 【修正】setting.config が空辞書 {} でも falsy になるため is not None で判定
     if setting and setting.config is not None:
         return setting.config
     return {}
@@ -140,8 +132,9 @@ def post_to_facebook(text: str, image_urls: List[str], config: dict) -> dict:
 def post_to_threads(text: str, image_urls: List[str], config: dict) -> dict:
     """Threads API (Meta) で投稿"""
     try:
-        user_id = config.get("user_id") or config.get("api_key")
-        access_token = config.get("access_token_secret") or config.get("access_token")
+        # 【修正】フロントのキー名に合わせる: User ID→api_key, Access Token→access_token
+        user_id = config.get("api_key")
+        access_token = config.get("access_token")
         base_url = "https://graph.threads.net/v1.0"
 
         if not image_urls:
