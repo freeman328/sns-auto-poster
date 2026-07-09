@@ -2136,8 +2136,15 @@
           body: JSON.stringify(payload)
         });
         if (resp.ok) {
+          const data = await resp.json();
           const label = repeat === 'daily' ? '（毎日）' : repeat === 'weekly' ? '（毎週）' : '';
-          toast(scheduled_at ? `📅 スケジュール登録しました ${label}` : `✅ 投稿しました ${label}`, 'success');
+          if (scheduled_at) {
+            toast(`📅 スケジュール登録しました ${label}`, 'success');
+          } else if (data.status === 'failed') {
+            toast('投稿に失敗しました: ' + (data.error_message || ''), 'error');
+          } else {
+            toast(`✅ 投稿しました ${label}`, 'success');
+          }
           resetForm();
           loadHistory();
           loadStats();
@@ -2508,8 +2515,15 @@
           body: JSON.stringify({ scheduled_at, repeat, weekdays })
         });
         if (resp.ok) {
+          const data = await resp.json();
           const label = repeat === 'daily' ? '（毎日）' : repeat === 'weekly' ? '（毎週）' : '';
-          toast(scheduled_at ? `📅 再投稿を予約しました ${label}` : '✅ 再投稿しました', 'success');
+          if (scheduled_at) {
+            toast(`📅 再投稿を予約しました ${label}`, 'success');
+          } else if (data.status === 'failed') {
+            toast('再投稿に失敗しました: ' + (data.error_message || ''), 'error');
+          } else {
+            toast('✅ 再投稿しました', 'success');
+          }
           closeRepostModal();
           loadHistory();
           loadStats();
