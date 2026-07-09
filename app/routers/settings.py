@@ -42,58 +42,8 @@ def get_all_settings(
     return result
 
 
-@router.get("/{platform}")
-def get_setting(
-    platform: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    setting = db.query(Settings).filter(
-        Settings.platform == platform.lower(),
-        Settings.user_id == current_user.id,
-    ).first()
-
-    return {
-        "config": setting.config if setting else {},
-        "is_connected": setting.is_connected if setting else False,
-    }
-
-
-@router.post("/{platform}")
-def update_setting(
-    platform: str,
-    body: SettingsUpdateBody,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    try:
-        setting = db.query(Settings).filter(
-            Settings.platform == platform.lower(),
-            Settings.user_id == current_user.id,
-        ).first()
-
-        has_keys = any(body.config.values())
-
-        if setting:
-            setting.config = body.config
-            setting.is_connected = has_keys
-        else:
-            setting = Settings(
-                platform=platform.lower(),
-                user_id=current_user.id,
-                config=body.config,
-                is_connected=has_keys,
-            )
-            db.add(setting)
-
-        db.commit()
-        db.refresh(setting)
-        return {"status": "success", "message": "保存完了"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"保存に失敗しました: {str(e)}")
-
-
+# 【修正】/test/{platform} を /{platform} より前に定義しないと
+#         POST /{platform} にマッチしてしまうため順序を入れ替え
 @router.post("/test/{platform}")
 def test_connection(
     platform: str,
@@ -124,7 +74,6 @@ def test_connection(
             success = response.data is not None
 
         elif platform == "facebook":
-            # 【修正4】パラメータ名を access_token_secret → access_token に修正
             resp = requests.get(
                 "https://graph.facebook.com/v18.0/me",
                 params={"access_token": config.get("page_access_token")},
@@ -134,21 +83,11 @@ def test_connection(
                 error = resp.text
 
         elif platform == "threads":
-            # アクセストークンはクエリパラメータで渡す（Threads API の要件）
-            access_token = config.get("access_token_secret") or config.get("access_token")
-            resp = requests.get(
-                "https://graph.threads.net/v1.0/me",
-                params={"access_token": access_token, "fields": "id,username"},
-            )
-            body = resp.json() if resp.content else {}
-            if "error" in body:
-                err = body["error"]
-                error = f"Threads API エラー (code={err.get('code')}): {err.get('message', str(err))}"
-                success = False
-            else:
-                success = resp.status_code == 200
-                if not success:
-                    error = resp.text
+            headers = {"Authorization": f"Bearer {config.get('access_token')}"}
+            resp = requests.get("https://graph.threads.net/v1.0/me", headers=headers)
+            success = resp.status_code == 200
+            if not success:
+                error = resp.text
 
         else:
             error = "未対応のプラットフォームです"
@@ -160,3 +99,59 @@ def test_connection(
     setting.is_connected = success
     db.commit()
     return {"success": success, "message": "接続テスト完了" if success else error}
+
+
+@router.get("/{platform}")
+def get_setting(
+    platform: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    setting = db.query(Settings).filter(
+        Settings.platform == platform.lower(),
+        Settings.user_id == current_user.id,
+    ).first()
+
+    return {
+        "config": setting.config if setting else {},
+        "is_connected": setting.is_connected if setting else False,
+    }
+
+
+@router.post("/{platform}")
+def update_setting(
+    platform: str,
+    body: SettingsUpdateBody,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        setting = db.query(Settings).filter(
+            Settings.platform == platform.lower(),
+            Settings.user_id == current_user.id,
+        ).first()
+
+        # 【修正】空文字・None・False を除外して本当に値があるキーだけ判定
+        has_keys = any(
+            v for v in body.config.values()
+            if v is not None and str(v).strip() != ""
+        )
+
+        if setting:
+            setting.config = body.config
+            setting.is_connected = has_keys
+        else:
+            setting = Settings(
+                platform=platform.lower(),
+                user_id=current_user.id,
+                config=body.config,
+                is_connected=has_keys,
+            )
+            db.add(setting)
+
+        db.commit()
+        db.refresh(setting)
+        return {"status": "success", "message": "保存完了"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"保存に失敗しました: {str(e)}")
