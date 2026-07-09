@@ -83,11 +83,15 @@ def test_connection(
                 error = resp.text
 
         elif platform == "threads":
-            headers = {"Authorization": f"Bearer {config.get('access_token')}"}
-            resp = requests.get("https://graph.threads.net/v1.0/me", headers=headers)
-            success = resp.status_code == 200
+            # 【修正】投稿処理(poster.py)と同じくクエリパラメータ方式に統一し、fields も明示指定する
+            resp = requests.get(
+                "https://graph.threads.net/v1.0/me",
+                params={"fields": "id,username", "access_token": config.get("access_token")},
+            )
+            resp_json = resp.json() if resp.content else {}
+            success = resp.status_code == 200 and "error" not in resp_json
             if not success:
-                error = resp.text
+                error = resp_json.get("error", {}).get("message", resp.text) if resp_json else resp.text
 
         else:
             error = "未対応のプラットフォームです"
